@@ -1,0 +1,17 @@
+{
+  "name": "DataSakura.JitterPhysics.Authoring",
+  "rootNamespace": "DataSakura.JitterPhysics.Authoring",
+  "references": [
+    "DataSakura.JitterPhysics.Contracts",
+    "DataSakura.JitterPhysics.UnityArtifact"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

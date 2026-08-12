@@ -1,0 +1,34 @@
+{
+  "name": "com.datasakura.jitter-physics-baker",
+  "version": "0.0.1",
+  "displayName": "DataSakura Jitter Physics Baker",
+  "description": "Deterministic editor-time baking of static collision geometry into a versioned, content-addressed binary artifact (SHA-256) that is loaded into a Jitter2 World by one shared loader on the Unity client and the .NET dedicated server. The package never owns the tick loop and never bakes at runtime.",
+  "unity": "6000.3",
+  "license": "MIT",
+  "keywords": [
+    "physics",
+    "jitter",
+    "jitter2",
+    "baking",
+    "deterministic",
+    "dedicated-server",
+    "collision"
+  ],
+  "author": {
+    "name": "DataSakura"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/denisislamov/jitter-physics-baker.git"
+  },
+  "documentationUrl": "https://github.com/denisislamov/jitter-physics-baker",
+  "changelogUrl": "https://github.com/denisislamov/jitter-physics-baker/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/denisislamov/jitter-physics-baker/blob/main/LICENSE.md",
+  "dependencies": {
+    "com.unity.modules.jsonserialize": "1.0.0",
+    "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0"
+  },
+  "hideInEditor": false
+}

@@ -1,0 +1,19 @@
+# This package is published to a standalone repository and installed through the
+# Unity Package Manager via a git URL. UPM clones that repository WITHOUT Git LFS
+# support, so any LFS-tracked file arrives as a ~130-byte text pointer instead of
+# the real content. Nothing inside this package may therefore be handed to LFS.
+
+*.bytes -filter -diff -merge binary
+*.dll   -filter -diff -merge binary
+
+# Byte-exact bake requires stable line endings for every hashed source file:
+# `jitter2.lock.json` hashes the canonical Jitter2 sources, and golden artifact
+# tests hash canonical text fixtures.
+*.cs      text eol=lf
+*.asmdef  text eol=lf
+*.asmref  text eol=lf
+*.json    text eol=lf
+*.meta    text eol=lf
+*.md      text eol=lf
+*.rsp     text eol=lf
+*.csproj  text eol=lf
