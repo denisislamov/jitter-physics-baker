@@ -1,0 +1,19 @@
+{
+  "name": "DataSakura.JitterPhysics.JitterIntegration",
+  "rootNamespace": "DataSakura.JitterPhysics.Integration",
+  "references": [
+    "DataSakura.JitterPhysics.Contracts",
+    "DataSakura.JitterPhysics.ArtifactCodec",
+    "Jitter2.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+

@@ -75,5 +75,27 @@ All notable changes to this package are documented here. The format is based on
   source are collected and inactive objects are never included, so a designer can add
   scenery without silently changing the level hash. Identifiers are sanitized once and then
   kept: renaming an object does not change the artifact.
+- **The bake pipeline.** `JitterPhysicsArtifactBuilder` collects marked sources, converts
+  their colliders and emits a canonical artifact. Records are ordered by authored id and
+  shapes by a structural key built from the hierarchy path, sibling index, component index
+  and collider type — never from instance ids or traversal order, so two bakes of an
+  unchanged scene are byte-identical and reordering siblings changes nothing.
+- **Collider conversion with explicit rules.** Box keeps its full size under absolute
+  scale; capsule length excludes the caps and the Unity axis becomes a local rotation;
+  mesh vertices are baked into body-local space with the full transform, and a mirrored
+  transform has its winding flipped so surfaces do not face inwards. Triggers, zero scale,
+  non-finite transforms and unreadable meshes are refused with the offending object
+  attached to the message. The single approximation — a sphere under non-uniform scale — is
+  conservative and reported as a warning, because a slightly larger wall is better than one
+  a player can walk through. A build is all-or-nothing.
+- **`JitterPhysicsWorldBuilder`, the shared loader.** Artifact records become Jitter bodies
+  and shapes through the public API only; nothing of the engine's internal state is
+  restored. It reports body/shape counts, elapsed time and a topology fingerprint that lets
+  a client and a server prove they built the same static world. Applying a second artifact
+  to the same world is refused instead of merged, and a failed build is rolled back
+  completely. The tick loop stays with the consumer. Verified under .NET against the
+  dormant snapshot: geometry is created in artifact order, a decoded artifact yields the
+  same fingerprint as the original, local shape poses survive, and a dynamic body actually
+  comes to rest on the baked ground.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD
