@@ -144,5 +144,35 @@ All notable changes to this package are documented here. The format is based on
   artifact and an empty world instead of a running match. `SelfCheck` is the line a Docker
   smoke test greps for — level, short artifact hash, short topology fingerprint, counts,
   tick rate, elapsed — with full hashes deliberately left out of the log.
+- **Embedded delivery.** `EmbeddedPhysicsArtifactProvider` serves an artifact compiled into
+  the server binary, and `EmbeddedArtifactSourceGenerator` turns already baked bytes into
+  deterministic generated C#. The generator never bakes and refuses a payload and a manifest
+  that disagree, because the point of the export is that the server runs the very bytes the
+  client verified. The payload is chunked base64 — a multi-megabyte string literal is hostile
+  to a compiler — and a size cap keeps embedding to proof-of-concept levels, where a level
+  change being a server recompile is acceptable.
+- **The Physics Baker window.** Level & Bake, Artifacts and Diagnostics, built on the same
+  commands a script calls rather than on a second copy of the pipeline. Validation issues
+  select the object that caused them; artifacts can be inspected, verified, exported as exact
+  bytes or as a generated provider, and deleted one explicitly named artifact at a time.
+  Diagnostics answers, without starting a match, the three questions that otherwise get
+  answered by one: does this project bake the same bytes twice, does every artifact decode,
+  and is each of them one this build can actually run.
+- **Installer with a receipt.** Installing the dormant Jitter2 snapshot or the Jitter adapter
+  goes through a staging folder and records every file with its hash. That record is what
+  lets an update tell "a file I wrote" from "a file somebody changed": the first is updated,
+  the second stops the operation and is reported by path, and an uninstall removes only what
+  the package wrote and nobody touched. An external Jitter2 is never copied, moved or edited
+  — the package references it by assembly name, and a tool that replaces a consumer's physics
+  engine has destroyed months of local work.
+- **Server source projection.** `Contracts`, `ArtifactCodec` and the integration are copied
+  into a consumer's server project with a hashed manifest, plus a `Verify` command their CI
+  can run to catch "the package was updated but the server copy was not". The no-Unity
+  invariant is checked per file rather than assumed, because a stray `using UnityEngine`
+  would not fail here — it would fail in a server build that has no engine at all.
+- **CI and a manual test plan.** A workflow runs the same four scripts a maintainer runs, plus
+  Unity's EditMode and PlayMode suites; `tools/run-unity-tests.sh` runs them locally in batch
+  mode. What no test can cover — dialogs, windows, installing into a project, exporting — is
+  written down step by step in the development project's manual test plan.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD

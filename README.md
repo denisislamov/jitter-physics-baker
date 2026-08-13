@@ -72,6 +72,12 @@ it. See `Server~/README.md`.
 
 ## Editor entry points
 
+- `Tools > DataSakura > Jitter Physics > Physics Baker` — the working surface. **Level &
+  Bake**: pick the level, read the validation issues and select the object that caused each
+  one, validate or bake. **Artifacts**: inspect what was baked, verify it re-hashes and
+  decodes, export the exact payload and manifest or a generated embedded provider, delete one
+  named artifact. **Diagnostics**: repeat-bake determinism, codec round-trip and runtime
+  compatibility, answered without starting a match.
 - `Tools > DataSakura > Jitter Physics > Setup` — which `Jitter2.Core` this project uses,
   whether its canonical source hash matches `jitter2.lock.json`, the resulting
   `runtimeCompatibilityId`, and why baking is blocked when it is. Read-only; the report can
@@ -87,6 +93,11 @@ it. See `Server~/README.md`.
   blocks baking rather than being worked around. The write is staged and re-hashed from
   disk before it replaces the previous artifact, a failed bake leaves that artifact intact,
   and baking in Play Mode is refused.
+- `Tools > DataSakura > Jitter Physics > Install > ...` — install the fallback Jitter2 copy
+  or the Jitter adapter, install and verify the server runtime sources, validate the
+  installation, and remove what the package owns. Every action is explicit, an external
+  Jitter2 is never touched, and a file modified after installation stops an update instead of
+  being overwritten.
 
 ## License
 
