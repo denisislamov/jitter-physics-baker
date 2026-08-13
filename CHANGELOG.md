@@ -47,5 +47,16 @@ All notable changes to this package are documented here. The format is based on
   separate command.
 - **`Jitter2~/` dormant snapshot skeleton** with patch/license provenance and a standalone
   `Jitter2.Core` assembly definition template for projects that have no Jitter2 of their own.
+- **`Server~/Tests`, a .NET 10 test project.** It compiles `Contracts` and `ArtifactCodec`
+  by reference and runs the same test files as the Unity test assembly, which is what turns
+  "these assemblies are engine-independent" from a claim into a checked property: the
+  dedicated server compiles them with a different compiler and runtime than Unity does.
+  Run through `tools~/test-dotnet.sh`.
+- **Golden-bytes and corrupt-payload tests.** The schema 1 layout is asserted against bytes
+  spelled out field by field, so changing the writer fails the build instead of silently
+  redefining the format. The corrupt matrix covers bad magic, unknown schema, truncation,
+  trailing bytes, empty input, hash mismatch, manifest disagreement and an artifact baked
+  for another runtime — each rejected with its own error code and without producing a
+  partially decoded artifact.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD

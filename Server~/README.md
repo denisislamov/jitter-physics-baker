@@ -9,9 +9,19 @@ Planned contents:
 
 - `RuntimeSources/` — the projection recipe exported into a consumer server project by
   `Tools > DataSakura > Jitter Physics > Setup > Install Server Runtime Sources...`.
-- `Tests/` — a .NET 10 test project that compiles the portable package sources **and**
-  `Jitter2~/Runtime` directly, so the dormant snapshot is verified by CI even though Unity
-  never builds it.
+
+Current contents:
+
+- `Tests/` — a .NET 10 test project that compiles the portable package sources by
+  reference and runs the shared test files. It is the evidence that `Contracts` and
+  `ArtifactCodec` really are engine-independent: the same tests that run in Unity are
+  executed here by a plain .NET SDK, with a different compiler and runtime.
+
+Run it with `dotnet test` from `Server~/Tests`, or through `tools~/test-dotnet.sh`.
+
+Once `Jitter2~/Runtime` is synced, this project also compiles the dormant snapshot
+directly and gains the world-builder tests, so the snapshot is verified by CI even though
+Unity never builds it.
 
 Two rules apply to everything here:
 
