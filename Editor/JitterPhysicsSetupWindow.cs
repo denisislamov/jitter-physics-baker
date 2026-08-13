@@ -9,11 +9,12 @@ namespace DataSakura.JitterPhysics.Editor
 {
     /// <summary>
     /// The <c>Setup</c> surface: which Jitter2 the project uses, whether it matches this
-    /// package release, and why an operation is blocked.
+    /// package release, why an operation is blocked, and the installation actions.
     /// <para>
-    /// The window only reads. Installing, updating or removing anything is a separate,
-    /// explicit command, because a window that mutates a project while it is being looked at
-    /// is how a consumer's own Jitter2 copy gets overwritten by accident.
+    /// The report itself only reads. Every action that changes the project is a button below it
+    /// and nothing runs on import, on selection or on opening the window: a tool that mutates a
+    /// project while it is being looked at is how a consumer's own Jitter2 copy gets overwritten
+    /// by accident.
     /// </para>
     /// </summary>
     public sealed class JitterPhysicsSetupWindow : EditorWindow
@@ -22,6 +23,7 @@ namespace DataSakura.JitterPhysics.Editor
 
         private JitterPhysicsCompatibilityReport report;
         private Vector2 scroll;
+        private string installLog;
 
         [MenuItem(MenuPath, false, 100)]
         private static void Open()
@@ -105,7 +107,110 @@ namespace DataSakura.JitterPhysics.Editor
                 }
             }
 
+            DrawInstallActions();
+
             EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// The actions that change the project. They live below the read-only report on purpose:
+        /// the window is opened to find out what is wrong far more often than to install
+        /// anything, and an install button under the cursor is an install button somebody presses
+        /// by accident.
+        /// </summary>
+        private void DrawInstallActions()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Installation", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Nothing here runs on import or on selection. An external Jitter2 is never copied, "
+                + "moved or edited, and package-owned files that were modified locally are reported "
+                + "instead of overwritten.",
+                MessageType.Info);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Validate installation"))
+                {
+                    Run(Install.JitterPhysicsInstaller.Validate());
+                }
+
+                using (new EditorGUI.DisabledScope(
+                    report.Status != JitterPhysicsCompatibilityStatus.Missing))
+                {
+                    if (GUILayout.Button("Install Jitter2"))
+                    {
+                        Run(Install.JitterPhysicsInstaller.InstallJitter());
+                    }
+                }
+
+                using (new EditorGUI.DisabledScope(
+                    report.Status == JitterPhysicsCompatibilityStatus.Missing))
+                {
+                    if (GUILayout.Button("Install/update integration"))
+                    {
+                        Run(Install.JitterPhysicsInstaller.InstallIntegration());
+                    }
+                }
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Install server runtime sources..."))
+                {
+                    string folder = EditorUtility.SaveFolderPanel(
+                        "Install server runtime sources into", string.Empty, "JitterPhysics");
+
+                    if (!string.IsNullOrEmpty(folder))
+                    {
+                        Run(Install.JitterPhysicsServerProjection.Install(folder));
+                    }
+                }
+
+                if (GUILayout.Button("Remove package-owned installation"))
+                {
+                    if (EditorUtility.DisplayDialog(
+                        "Remove installation",
+                        "Files this package installed and that have not been modified since will be "
+                        + "deleted. Anything you changed is kept.",
+                        "Remove",
+                        "Cancel"))
+                    {
+                        Run(Install.JitterPhysicsInstaller.Uninstall(
+                            Install.JitterPhysicsComponentIds.Integration));
+                        Run(Install.JitterPhysicsInstaller.Uninstall(
+                            Install.JitterPhysicsComponentIds.Jitter));
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(installLog))
+            {
+                EditorGUILayout.SelectableLabel(
+                    installLog, EditorStyles.textArea, GUILayout.MinHeight(80f));
+            }
+        }
+
+        private void Run(Install.JitterPhysicsInstallResult result)
+        {
+            var builder = new System.Text.StringBuilder();
+            for (int i = 0; i < result.Issues.Issues.Count; i++)
+            {
+                Baking.JitterPhysicsIssue issue = result.Issues.Issues[i];
+                builder.Append(issue.IsError ? "ERROR  " : "note   ").Append(issue.Message).Append('\n');
+            }
+
+            if (result.Succeeded && result.Files.Count > 0)
+            {
+                builder.Append(result.Files.Count).Append(" file(s):\n");
+                for (int i = 0; i < result.Files.Count; i++)
+                {
+                    builder.Append("  ").Append(result.Files[i]).Append('\n');
+                }
+            }
+
+            installLog = builder.ToString();
+            Refresh();
         }
 
         private void ExportReport()
@@ -153,4 +258,6 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
+
+
 
