@@ -92,8 +92,8 @@ namespace DataSakura.JitterPhysics.Editor.Tests
 
             IReadOnlyList<JitterStaticBodySource> collected = level.CollectSources();
 
-            Assert.That(collected, Does.Contain(marked));
-            Assert.That(collected, Does.Not.Contain(outside));
+            Assert.That(collected, Has.Member(marked));
+            Assert.That(collected, Has.No.Member(outside));
             Assert.That(collected.Count, Is.EqualTo(1));
         }
 
@@ -116,8 +116,8 @@ namespace DataSakura.JitterPhysics.Editor.Tests
 
             // Disabling an object is how a designer removes it from the level; an invisible
             // wall that still blocks movement would be the worst possible outcome here.
-            Assert.That(collected, Does.Contain(active));
-            Assert.That(collected, Does.Not.Contain(inactive));
+            Assert.That(collected, Has.Member(active));
+            Assert.That(collected, Has.No.Member(inactive));
         }
 
         [Test]
@@ -161,4 +161,6 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
     }
 }
+
+
 

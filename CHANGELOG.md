@@ -47,6 +47,16 @@ All notable changes to this package are documented here. The format is based on
   separate command.
 - **`Jitter2~/` dormant snapshot skeleton** with patch/license provenance and a standalone
   `Jitter2.Core` assembly definition template for projects that have no Jitter2 of their own.
+- **The snapshot is now populated: upstream Jitter2 `2.8.9`** (commit `c15bc6ab`, 96
+  sources), synced by `tools~/sync-jitter2.py` rather than copied by hand, so the question
+  "which Jitter2 is this built against" is answered by a repository, a ref, a commit and a
+  content hash. `Server~/Tests` compiles it directly and runs smoke tests — a static body
+  keeps its pose, a dynamic body comes to rest on it, the build really is single precision
+  and two identical runs give identical results — because Unity never builds that folder
+  and nothing else would notice if the fallback copy were broken.
+  Note that this is *unpatched upstream*: it has no `JITTER_UNITY` define and uses hardware
+  intrinsics, so it is not yet validated as a Unity fallback. The lock's compile profile
+  says so instead of describing the intended end state; see `Jitter2~/PATCHES.md`.
 - **`Server~/Tests`, a .NET 10 test project.** It compiles `Contracts` and `ArtifactCodec`
   by reference and runs the same test files as the Unity test assembly, which is what turns
   "these assemblies are engine-independent" from a claim into a checked property: the

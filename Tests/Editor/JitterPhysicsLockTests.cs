@@ -32,19 +32,45 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         [Test]
         public void CompileProfileIsSerializedTheWayThePythonToolingSerializesIt()
         {
+            // A synthetic profile, so the assertion states the serialization *rule* and does
+            // not have to be edited whenever the real profile changes. The rule is what the
+            // two implementations must share: json.dumps(profile, sort_keys=True,
+            // separators=(",", ":"), ensure_ascii=True).
+            JitterPhysicsLock parsed = JitterPhysicsLock.Parse(
+                "{\n"
+                + "  \"assemblyName\": \"Jitter2.Core\",\n"
+                + "  \"compileProfile\": {\n"
+                + "    \"zebra\": \"last\",\n"
+                + "    \"allowUnsafe\": true,\n"
+                + "    \"count\": 7,\n"
+                + "    \"Apple\": \"uppercase sorts first\",\n"
+                + "    \"unicode\": \"\u00fcber\"\n"
+                + "  }\n"
+                + "}\n");
+
+            Assert.That(
+                parsed.CompileProfileText,
+                Is.EqualTo(
+                    "{\"Apple\":\"uppercase sorts first\","
+                    + "\"allowUnsafe\":true,"
+                    + "\"count\":7,"
+                    + "\"unicode\":\"\\u00fcber\","
+                    + "\"zebra\":\"last\"}"));
+        }
+
+        [Test]
+        public void CompileProfileIdIsDerivedFromTheProfileText()
+        {
             JitterPhysicsLock lockFile = LoadLock();
 
-            // json.dumps(profile, sort_keys=True, separators=(",", ":")): keys in ordinal
-            // order, no spaces. The text itself is hashed, so the format is the contract.
-            Assert.That(
-                lockFile.CompileProfileText,
-                Is.EqualTo(
-                    "{\"allowUnsafe\":true,"
-                    + "\"intrinsicsProfile\":\"unity-supported-version\","
-                    + "\"polyfillProfile\":\"unity-supported-version\","
-                    + "\"precision\":\"f32\","
-                    + "\"unityDefine\":\"JITTER_UNITY\"}"));
             Assert.That(lockFile.CompileProfileId, Has.Length.EqualTo(64));
+            Assert.That(lockFile.CompileProfileText, Does.StartWith("{"));
+
+            // The id is a hash of the text, never a hand-written name, so a changed profile
+            // cannot keep an identifier that claims compatibility it no longer has.
+            Assert.That(
+                lockFile.CompileProfileId,
+                Is.EqualTo(ArtifactCodec.JitterPhysicsHash.Sha256HexUtf8(lockFile.CompileProfileText)));
         }
 
         [Test]
@@ -53,7 +79,16 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             JitterPhysicsLock lockFile = LoadLock();
             string snapshotRoot = Path.Combine(PackageRoot(), "Jitter2~", "Runtime");
 
-            string actual = JitterPhysicsSourceHasher.ComputeSourceContentHash(snapshotRoot, lockFile);
+            var inputs = JitterPhysicsSourceHasher.CollectInputs(
+                snapshotRoot, lockFile.IncludedFiles, lockFile.ExcludedFiles);
+
+            // An empty snapshot would hash consistently and prove nothing, so the count is
+            // asserted before the hash.
+            Assert.That(inputs.Count, Is.GreaterThan(0), "The dormant Jitter2 snapshot is empty.");
+            Assert.That(lockFile.IsPlaceholder, Is.False, "The lock still carries a placeholder hash.");
+
+            string actual = JitterPhysicsSourceHasher.ComputeSourceContentHash(
+                inputs, lockFile.CompileProfileText);
 
             // This is the cross-tool check: the value in the lock was produced by the Python
             // tool, and it is recomputed here by the C# implementation.
@@ -202,6 +237,8 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
     }
 }
+
+
 
 
 

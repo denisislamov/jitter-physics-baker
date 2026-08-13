@@ -25,12 +25,22 @@ INCLUDE = LOCK["includedFiles"]
 EXCLUDE = LOCK["excludedFiles"]
 PROFILE = canonical_compile_profile_text(LOCK)
 
-EXPECTED_PROFILE_TEXT = (
-    '{"allowUnsafe":true,'
-    '"intrinsicsProfile":"unity-supported-version",'
-    '"polyfillProfile":"unity-supported-version",'
-    '"precision":"f32",'
-    '"unityDefine":"JITTER_UNITY"}'
+# A synthetic profile, so the assertion states the serialization *rule* rather than the
+# current contents of the lock. `JitterPhysicsLockTests` asserts the same case in C#.
+SYNTHETIC_PROFILE = {
+    "zebra": "last",
+    "allowUnsafe": True,
+    "count": 7,
+    "Apple": "uppercase sorts first",
+    "unicode": "\u00fcber",
+}
+
+EXPECTED_SYNTHETIC_PROFILE_TEXT = (
+    '{"Apple":"uppercase sorts first",'
+    '"allowUnsafe":true,'
+    '"count":7,'
+    '"unicode":"\\u00fcber",'
+    '"zebra":"last"}'
 )
 
 GLOB_CASES = [
@@ -70,7 +80,21 @@ def check(name: str, condition: bool, failures: list[str]) -> None:
 def main() -> int:
     failures: list[str] = []
 
-    check("compile profile text is canonical", PROFILE == EXPECTED_PROFILE_TEXT, failures)
+    check(
+        "compile profile serialization rule",
+        canonical_compile_profile_text({"compileProfile": SYNTHETIC_PROFILE})
+        == EXPECTED_SYNTHETIC_PROFILE_TEXT,
+        failures,
+    )
+    check("real compile profile is serialized", PROFILE.startswith("{"), failures)
+
+    snapshot = collect_inputs(PACKAGE_ROOT / "Jitter2~" / "Runtime", INCLUDE, EXCLUDE)
+    check("dormant snapshot is not empty", len(snapshot) > 0, failures)
+    check(
+        "lock matches the dormant snapshot",
+        compute_source_content_hash(snapshot, PROFILE) == LOCK["sourceContentHash"],
+        failures,
+    )
 
     for path, pattern, expected in GLOB_CASES:
         check(f"glob {path!r} ~ {pattern!r} == {expected}", glob_matches(path, pattern) is expected, failures)
@@ -107,4 +131,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
 

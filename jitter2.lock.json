@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "assemblyName": "Jitter2.Core",
   "upstreamRepository": "https://github.com/notgiven688/jitterphysics2",
-  "upstreamCommit": "UNSET",
-  "patchSetId": "datasakura-jitter2-unset",
-  "sourceContentHash": "sha256:0382f76a729c99e4a7619f6d2e0ffe9ffbcfab7bd194262ecc4dc8b2efae85ae",
+  "upstreamCommit": "c15bc6abfdda90a936975979a42f7a54a211084e",
+  "patchSetId": "upstream-2.8.9-unpatched",
+  "sourceContentHash": "sha256:cfcfab5cb19a73c2fc15ddd556e50a38d8b414dd6f8a50e98672f8b4df9d7bcb",
   "integrationApiVersion": 1,
   "compileProfile": {
     "precision": "f32",
     "allowUnsafe": true,
-    "unityDefine": "JITTER_UNITY",
-    "polyfillProfile": "unity-supported-version",
-    "intrinsicsProfile": "unity-supported-version"
+    "unityDefine": "",
+    "polyfillProfile": "none",
+    "intrinsicsProfile": "hardware"
   },
   "includedFiles": [
     "**/*.cs",
