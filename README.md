@@ -57,6 +57,10 @@ Samples~/  Documentation~/  tools~/
 
 ## Editor entry points
 
+- `Tools > DataSakura > Jitter Physics > Setup` — which `Jitter2.Core` this project uses,
+  whether its canonical source hash matches `jitter2.lock.json`, the resulting
+  `runtimeCompatibilityId`, and why baking is blocked when it is. Read-only; the report can
+  be copied or exported as JSON for CI.
 - `Tools > DataSakura > Jitter Physics > About` — package, schema and assembly state,
   including whether a `Jitter2.Core` is present and whether it is duplicated.
 

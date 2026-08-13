@@ -23,5 +23,29 @@ All notable changes to this package are documented here. The format is based on
   project: the package is published to its standalone repository with `git subtree split`
   and is validated for truncated `.meta` files and Git LFS pointers first, both of which
   are invisible here but fatal for a consumer installing from a git URL.
+- **Artifact contracts and the binary codec (schema 1).** Portable DTOs for world
+  settings, static bodies and box/sphere/capsule/mesh shapes, a canonical little-endian
+  writer, a bounds-checked reader, a semantic validator, a deterministic manifest codec
+  and the transport-agnostic compatibility token. Canonicalization (`-0.0f` folding,
+  quaternion sign convention, ordinal record ordering) lives in one place, so a repeated
+  bake of an unchanged scene is byte-identical and hashes the same on any machine.
+- **`runtimeCompatibilityId`.** Derived from the artifact schema, the Jitter source hash,
+  the compile profile and the package's conversion/world-builder semantics versions. It is
+  always computed, never hand-written, so a runtime-semantic change cannot keep an id that
+  makes an incompatible client and server look compatible.
+- **`jitter2.lock.json` and the canonical source hash.** Two independent implementations
+  agree byte-for-byte on the hash: `tools~/hash-jitter2.py` / `tools~/verify-jitter2-lock.py`
+  for CI, and `JitterPhysicsSourceHasher` for the editor. File selection, ordering, line
+  ending normalization and the serialized compile profile are pinned by the package rather
+  than inherited from a platform default, and `tools~/test-jitter2-lock.py` asserts the
+  invariants both sides rely on.
+- **Jitter2 discovery and the compatibility report.** `Tools > DataSakura > Jitter Physics >
+  Setup` classifies the project as `Missing`, `Compatible`, `Incompatible`, `Duplicate` or
+  `UnsupportedPlugin`, shows the expected and actual source hashes and exports a
+  machine-readable JSON report for CI. Discovery goes through assembly metadata rather than
+  a fixed folder, and the window only reads: installing anything remains an explicit,
+  separate command.
+- **`Jitter2~/` dormant snapshot skeleton** with patch/license provenance and a standalone
+  `Jitter2.Core` assembly definition template for projects that have no Jitter2 of their own.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD

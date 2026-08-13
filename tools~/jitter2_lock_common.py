@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
+import re
+from pathlib import Path
 from typing import Any, Iterable
 
 
@@ -41,24 +42,80 @@ def is_text_file(path: Path) -> bool:
 
 
 def matches_any_pattern(path: str, patterns: Iterable[str]) -> bool:
-    posix = PurePosixPath(path)
-    return any(posix.match(pattern) for pattern in patterns)
+    return any(glob_matches(path, pattern) for pattern in patterns)
+
+
+def glob_matches(path: str, pattern: str) -> bool:
+    """Deterministic glob matching, defined here rather than taken from pathlib.
+
+    `pathlib.PurePosixPath.match` changed `**` semantics between Python releases and
+    never matched a top-level file against `**/*.cs`. The lock hash has to be identical
+    in this script and in the C# editor implementation, so the rules are spelled out:
+
+    * `**/` matches zero or more leading directories,
+    * `**`  matches anything, including `/`,
+    * `*`   matches anything except `/`,
+    * `?`   matches a single character except `/`.
+    """
+    return _compile_glob(pattern).match(path) is not None
+
+
+def _compile_glob(pattern: str) -> re.Pattern[str]:
+    cached = _GLOB_CACHE.get(pattern)
+    if cached is not None:
+        return cached
+
+    regex: list[str] = ["^"]
+    index = 0
+    length = len(pattern)
+    while index < length:
+        character = pattern[index]
+        if pattern.startswith("**/", index):
+            regex.append("(?:[^/]+/)*")
+            index += 3
+        elif pattern.startswith("**", index):
+            regex.append(".*")
+            index += 2
+        elif character == "*":
+            regex.append("[^/]*")
+            index += 1
+        elif character == "?":
+            regex.append("[^/]")
+            index += 1
+        else:
+            regex.append(re.escape(character))
+            index += 1
+
+    regex.append("$")
+    compiled = re.compile("".join(regex))
+    _GLOB_CACHE[pattern] = compiled
+    return compiled
+
+
+_GLOB_CACHE: dict[str, re.Pattern[str]] = {}
 
 
 def collect_inputs(root: Path, include_patterns: list[str], exclude_patterns: list[str]) -> list[tuple[str, bytes]]:
     if not root.exists():
         return []
 
-    inputs: list[tuple[str, bytes]] = []
-    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+    selected: list[str] = []
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
         relative = canonical_relative_path(path, root)
         if include_patterns and not matches_any_pattern(relative, include_patterns):
             continue
         if exclude_patterns and matches_any_pattern(relative, exclude_patterns):
             continue
-        inputs.append((relative, normalize_content(path)))
+        selected.append(relative)
 
-    return inputs
+    # Ordinal sort on the canonical relative path, so that the digest order does not
+    # depend on the file system enumeration order or on the absolute location of the
+    # package. The C# editor implementation sorts the same way.
+    selected.sort()
+
+    return [(relative, normalize_content(root / relative)) for relative in selected]
 
 
 def compute_source_content_hash(inputs: list[tuple[str, bytes]], compile_profile_text: str) -> str:
@@ -81,4 +138,7 @@ def compute_source_content_hash(inputs: list[tuple[str, bytes]], compile_profile
         digest.update(b"\n")
 
     return "sha256:" + digest.hexdigest()
+
+
+
 
