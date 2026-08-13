@@ -117,5 +117,20 @@ All notable changes to this package are documented here. The format is based on
   compatibility it does not have. Validation still runs when the setup is broken, because
   the authoring problems it reports are worth seeing first. Menu items for baking and
   validating the selected level log every issue against the object that caused it.
+- **`IPhysicsArtifactProvider` and `FilePhysicsArtifactProvider`.** One boundary between a
+  server's startup and wherever its artifact comes from: startup resolves a provider, asks
+  for the artifact and either builds the world or refuses to accept players. A provider
+  never returns anything that is not already hashed, decoded, validated and cross-checked
+  against its manifest, because a caller holding an artifact object cannot tell how much of
+  that happened. The file provider is pointed at the *manifest* rather than the payload —
+  the expected hash, the counts and the tick rate live there, and a payload alone cannot be
+  cross-checked. It reads the binary from the manifest's own folder and refuses a payload
+  name that is not a plain file name, since a manifest is untrusted input and a server must
+  not be talked into reading an arbitrary path. Both size caps are enforced against the file
+  length before anything is read into memory. How the two files reach the machine —
+  published content, a mounted volume, an artifact registry — stays with the consumer; the
+  package assumes no deploy system and no directory layout. A new `SourceUnavailable` error
+  code separates "the artifact was not delivered" from "the artifact is corrupt", because
+  those call for different actions from whoever is on call.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD

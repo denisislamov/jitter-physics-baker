@@ -47,6 +47,13 @@ namespace DataSakura.JitterPhysics.Contracts
 
         /// <summary>The artifact was baked for different runtime semantics.</summary>
         IncompatibleRuntime,
+
+        /// <summary>
+        /// The artifact could not be obtained at all: no file at the configured path, no
+        /// embedded payload, no read permission. Kept apart from the corruption codes because
+        /// the operator action is different — "deliver the artifact" rather than "re-bake it".
+        /// </summary>
+        SourceUnavailable,
     }
 
     /// <summary>

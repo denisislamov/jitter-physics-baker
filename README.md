@@ -55,6 +55,16 @@ Server~/                server source projection and .NET tests
 Samples~/  Documentation~/  tools~/
 ```
 
+## Loading on a server
+
+Startup resolves one `IPhysicsArtifactProvider`, asks it for the artifact and only then
+builds the world; the provider has already hashed, decoded, validated and cross-checked it
+against its manifest. `FilePhysicsArtifactProvider` covers artifacts delivered as content:
+it is given a manifest path (typically `--physics-manifest <path>`) and reads the payload
+named by that manifest from the same folder. Delivering those two files — published
+content, a mounted volume, an artifact registry — is the consumer's decision and the
+package makes no assumption about it. See `Server~/README.md`.
+
 ## Editor entry points
 
 - `Tools > DataSakura > Jitter Physics > Setup` — which `Jitter2.Core` this project uses,
