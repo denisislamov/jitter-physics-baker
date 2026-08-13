@@ -97,5 +97,25 @@ All notable changes to this package are documented here. The format is based on
   dormant snapshot: geometry is created in artifact order, a decoded artifact yields the
   same fingerprint as the original, local shape poses survive, and a dynamic body actually
   comes to rest on the baked ground.
+- **The artifact is now written into the project.** `JitterPhysicsBaker` stages the payload
+  and the manifest in a temporary folder, decodes the bytes it is about to write and
+  re-hashes them from disk, and only then moves them into place — so a truncated write or a
+  file mangled on the way in is caught before it can replace a good result. A failed bake
+  leaves the previously baked artifact untouched, because a level that used to work must not
+  stop working because somebody pressed Bake with a broken scene. Baking in Play Mode is
+  refused outright: the scene state there belongs to the simulation, not to the author.
+- **`JitterPhysicsArtifactAsset` and `JitterPhysicsArtifactLoader`.** The payload lives in a
+  separate `.bytes` `TextAsset` that Unity copies verbatim, so the bytes a client loads are
+  the bytes that were hashed; the ScriptableObject only holds a reference and a copy of the
+  manifest for the inspector. The loader treats those copied fields as untrusted: it
+  re-hashes the payload, re-decodes it and reports a disagreement instead of quietly
+  preferring one side, since a metadata field is exactly what a careless merge edits first.
+  Re-baking updates the asset in place, so scene references survive.
+- **`JitterPhysicsBakeCommand`, the single bake entry point.** The `runtimeCompatibilityId`
+  always comes from the compatibility report and cannot be passed in by a caller, so no
+  script can talk its way past a red Setup window and produce an artifact claiming a
+  compatibility it does not have. Validation still runs when the setup is broken, because
+  the authoring problems it reports are worth seeing first. Menu items for baking and
+  validating the selected level log every issue against the object that caused it.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD
