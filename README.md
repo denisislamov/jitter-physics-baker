@@ -63,6 +63,15 @@ Samples~/  Documentation~/  tools~/
   be copied or exported as JSON for CI.
 - `Tools > DataSakura > Jitter Physics > About` — package, schema and assembly state,
   including whether a `Jitter2.Core` is present and whether it is duplicated.
+- `Tools > DataSakura > Jitter Physics > Validate Selected Level` — runs the whole build
+  without writing anything, and logs every issue against the object that caused it. Safe to
+  run while the setup is still red: the authoring problems are worth seeing first.
+- `Tools > DataSakura > Jitter Physics > Bake Selected Level` — validates, builds and writes
+  the artifact for the selected `JitterPhysicsLevel`. The `runtimeCompatibilityId` is taken
+  from the compatibility report and cannot be supplied by a caller, so a red Setup window
+  blocks baking rather than being worked around. The write is staged and re-hashed from
+  disk before it replaces the previous artifact, a failed bake leaves that artifact intact,
+  and baking in Play Mode is refused.
 
 ## License
 
