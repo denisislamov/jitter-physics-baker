@@ -132,5 +132,17 @@ All notable changes to this package are documented here. The format is based on
   package assumes no deploy system and no directory layout. A new `SourceUnavailable` error
   code separates "the artifact was not delivered" from "the artifact is corrupt", because
   those call for different actions from whoever is on call.
+- **`JitterPhysicsServerStartup`, the server's bring-up in one call.** It owns the order a
+  dedicated server has to follow — obtain the artifact, check it against what this build
+  claims to be, build the static world, report readiness — because that order is exactly
+  what gets shortened under deadline pressure, and the result is a match where the server
+  has no walls and every client looks like a cheater. The build's runtime id is mandatory;
+  the level it was launched to host and the rate it steps at are optional and refused on
+  mismatch rather than adopted, since a server that silently accepts the artifact's tick
+  rate diverges from a client predicting at another one. `JitterPhysicsServerState` has no
+  partially ready form: approval is gated on `IsReady`, and ignoring it yields a `null`
+  artifact and an empty world instead of a running match. `SelfCheck` is the line a Docker
+  smoke test greps for — level, short artifact hash, short topology fingerprint, counts,
+  tick rate, elapsed — with full hashes deliberately left out of the log.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD

@@ -32,15 +32,23 @@ arrive as content:
 
 ```csharp
 var provider = new FilePhysicsArtifactProvider(manifestPath);   // e.g. --physics-manifest <path>
-PhysicsArtifactLoadResult load = provider.Load(expectedRuntimeCompatibilityId);
-if (!load.Succeeded)
-{
-    // load.Error carries the code, the level id and the hash; stop before Netick approval.
-    return;
-}
+var options = new JitterPhysicsServerOptions(
+    runtimeCompatibilityId: ThisBuild.RuntimeCompatibilityId,
+    expectedLevelId: launchArguments.Level,   // optional, but it catches a wrong mount
+    tickRate: 30);                            // the rate this server actually steps at
 
-PhysicsWorldBuildResult build = JitterPhysicsWorldBuilder.Apply(world, load.Artifact);
+JitterPhysicsServerState physics = JitterPhysicsServerStartup.Start(world, provider, options);
+Console.WriteLine(physics.SelfCheck);         // the line a Docker smoke test greps for
+
+if (!physics.IsReady)
+{
+    return ExitCodes.PhysicsUnavailable;      // never enable connection approval
+}
 ```
+
+`JitterPhysicsServerStartup` (in `JitterIntegration~`) owns the order: load, check the
+artifact against what this build claims to be, build the static world, and only then report
+readiness. It is a startup step, not a service — the tick loop stays with the match server.
 
 It is pointed at the **manifest**, not at the payload, because the payload alone cannot be
 cross-checked: the expected hash, the counts and the tick rate all live in the manifest.

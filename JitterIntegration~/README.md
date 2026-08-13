@@ -12,8 +12,22 @@ the import before the installer could run.
 
 | Path | Purpose |
 | --- | --- |
-| `Runtime/` | `JitterPhysicsWorldBuilder`: the shared loader for client and server |
+| `Runtime/` | `JitterPhysicsWorldBuilder`: the shared loader for client and server, and `JitterPhysicsServerStartup`: the server's one-call bring-up |
 | `UnityAssemblyTemplate/` | the assembly definition the installer writes into the project |
+
+## Server startup
+
+`JitterPhysicsServerStartup.Start(world, provider, options)` owns the *order* a dedicated
+server has to follow: obtain the artifact from a provider, check it against what this build
+claims to be — runtime semantics id, the level it was launched to host, the rate it steps
+at — build the static world, and only then report readiness. It is a startup step inside
+the consumer's match server, not a service: the package still never calls `World.Step`.
+
+The returned `JitterPhysicsServerState` has no partially ready form. Connection approval is
+gated on `IsReady`, and a caller that ignores it gets a `null` artifact and a world without
+geometry rather than a match that starts without walls. `SelfCheck` is the line a
+deployment smoke test greps for: level, short artifact hash, short topology fingerprint,
+counts, tick rate and elapsed time.
 
 ## Installation
 
@@ -40,4 +54,5 @@ nothing forces the dependency in the other direction.
 The sources are compiled and tested by `Server~/Tests` under .NET, against the dormant
 snapshot in `Jitter2~/`. Unity compiles the same files after installation, so the client
 and the server share one implementation rather than two that agree today.
+
 
