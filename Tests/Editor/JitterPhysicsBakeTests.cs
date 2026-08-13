@@ -117,6 +117,32 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
 
         [Test]
+        public void AnUnrotatedShapeBakesToAnIdentityLocalRotation()
+        {
+            // Regression: the converter used default(Quaternion) as "no axis correction", but
+            // that value is (0,0,0,0), and Unity's fuzzy quaternion equality made the guard
+            // fire anyway, multiplying the local rotation to zero. A plain sphere or box then
+            // threw "zero length" instead of baking. This is the smallest scene that reproduced
+            // it: one axis-aligned box, no rotation anywhere.
+            JitterPhysicsLevel level = CreateLevel(out Transform root);
+            JitterStaticBodySource source = CreateSource(root, "ground", Vector3.zero);
+            source.gameObject.AddComponent<BoxCollider>();
+
+            source.gameObject.AddComponent<SphereCollider>();
+
+            JitterPhysicsBuildResult result = JitterPhysicsArtifactBuilder.Build(level, RuntimeId);
+
+            Assert.That(result.Succeeded, Is.True, result.Issues.Format());
+            foreach (PhysicsShapeRecord shape in result.Artifact.Bodies[0].Shapes)
+            {
+                Assert.That(shape.LocalRotation.X, Is.EqualTo(0f));
+                Assert.That(shape.LocalRotation.Y, Is.EqualTo(0f));
+                Assert.That(shape.LocalRotation.Z, Is.EqualTo(0f));
+                Assert.That(shape.LocalRotation.W, Is.EqualTo(1f));
+            }
+        }
+
+        [Test]
         public void CapsuleLengthExcludesTheCaps()
         {
             JitterPhysicsLevel level = CreateLevel(out Transform root);
@@ -324,4 +350,3 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
     }
 }
-

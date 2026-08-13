@@ -112,6 +112,16 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 + "JITTER_UNITY define and uses hardware intrinsics, so it is verified under .NET "
                 + "but not yet validated as a Unity fallback. See Jitter2~/PATCHES.md.");
 
+            // Upstream Jitter2 uses C# 10+ syntax (file-scoped namespaces, collection
+            // expressions), while Unity compiles an asmdef assembly at its default language
+            // version. An assembly-scoped csc.rsp raises it just for this folder, which is the
+            // minimum that lets the snapshot compile at all; it changes syntax acceptance, not
+            // semantics, so it does not affect the artifact bytes or the source hash.
+            var extraFiles = new[]
+            {
+                ("csc.rsp", System.Text.Encoding.UTF8.GetBytes("-langversion:latest\n")),
+            };
+
             return Install(
                 JitterPhysicsComponentIds.Jitter,
                 sourceFolder,
@@ -120,7 +130,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 templatePath,
                 compatibility.ExpectedSourceHash,
                 receipt,
-                issues);
+                issues,
+                extraFiles);
         }
 
         /// <summary>Installs or updates the Jitter-dependent adapter assembly.</summary>
@@ -180,6 +191,44 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 compatibility.ActualSourceHash,
                 receipt,
                 issues);
+        }
+
+        /// <summary>
+        /// Removes several components in one operation and reports them together. The menu and
+        /// the Setup window use this rather than calling <see cref="Uninstall"/> twice: two
+        /// separate reports mean the second one — the one with nothing to warn about — is the
+        /// one the user is left looking at, and the warning that a modified file was kept
+        /// silently scrolls away.
+        /// </summary>
+        public static JitterPhysicsInstallResult UninstallAll(params string[] componentIds)
+        {
+            var issues = new JitterPhysicsIssueLog();
+            var removed = new List<string>();
+
+            for (int i = 0; i < componentIds.Length; i++)
+            {
+                JitterPhysicsInstallResult result = Uninstall(componentIds[i]);
+
+                for (int f = 0; f < result.Files.Count; f++)
+                {
+                    removed.Add(result.Files[f]);
+                }
+
+                for (int n = 0; n < result.Issues.Issues.Count; n++)
+                {
+                    JitterPhysicsIssue issue = result.Issues.Issues[n];
+                    if (issue.IsError)
+                    {
+                        issues.Error(issue.Message, issue.Context);
+                    }
+                    else
+                    {
+                        issues.Warning(issue.Message, issue.Context);
+                    }
+                }
+            }
+
+            return new JitterPhysicsInstallResult(removed, issues);
         }
 
         /// <summary>
@@ -311,7 +360,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
             string asmdefTemplatePath,
             string sourceHash,
             JitterPhysicsInstallReceipt receipt,
-            JitterPhysicsIssueLog issues)
+            JitterPhysicsIssueLog issues,
+            IReadOnlyList<(string RelativePath, byte[] Content)> extraFiles = null)
         {
             JitterPhysicsInstalledComponent existing = receipt.Component(componentId);
             if (existing != null && !VerifyUnmodified(existing, issues))
@@ -340,6 +390,15 @@ namespace DataSakura.JitterPhysics.Editor.Install
             // Unity compiles, because the package itself must never contain an asmdef that
             // references Jitter2 - that is the whole reason a clean import works.
             staged.Add((asmdefName, File.ReadAllBytes(asmdefTemplatePath)));
+
+            if (extraFiles != null)
+            {
+                for (int i = 0; i < extraFiles.Count; i++)
+                {
+                    staged.Add(extraFiles[i]);
+                }
+            }
+
             staged.Sort((left, right) => string.CompareOrdinal(left.RelativePath, right.RelativePath));
 
             var written = new List<string>(staged.Count);
@@ -565,8 +624,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 return;
             }
 
-            Report(JitterPhysicsInstaller.Uninstall(JitterPhysicsComponentIds.Integration));
-            Report(JitterPhysicsInstaller.Uninstall(JitterPhysicsComponentIds.Jitter));
+            Report(JitterPhysicsInstaller.UninstallAll(
+                JitterPhysicsComponentIds.Integration, JitterPhysicsComponentIds.Jitter));
         }
 
         internal static void Report(JitterPhysicsInstallResult result)
@@ -593,4 +652,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
+
+
+
 

@@ -206,8 +206,22 @@ namespace DataSakura.JitterPhysics.Editor.Baking
 
                 seenKeys.Add(shapeKey, collider);
 
-                JitterPhysicsConversionResult result =
-                    JitterPhysicsColliderConverter.Convert(bodyRoot, collider, shapeKey);
+                JitterPhysicsConversionResult result;
+                try
+                {
+                    result = JitterPhysicsColliderConverter.Convert(bodyRoot, collider, shapeKey);
+                }
+                catch (Exception exception)
+                {
+                    // A converter bug must not escape as an unhandled exception through the
+                    // editor window's OnGUI: that hides which collider caused it and takes the
+                    // whole panel down. Turn it into an issue pointing at the object instead.
+                    issues.Error(
+                        $"Converting collider '{shapeKey}' failed unexpectedly: {exception.Message}. "
+                        + "This is a bug in the baker; please report the collider.",
+                        collider);
+                    continue;
+                }
 
                 if (!result.Succeeded)
                 {
@@ -247,4 +261,5 @@ namespace DataSakura.JitterPhysics.Editor.Baking
         }
     }
 }
+
 

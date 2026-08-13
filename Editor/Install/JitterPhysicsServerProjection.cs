@@ -215,12 +215,16 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
                     // The invariant this delivery depends on, checked instead of assumed: a
                     // UnityEngine reference here would not fail in Unity, only later, in a
-                    // consumer's server build that has no engine at all.
-                    if (text.Contains("using UnityEngine") || text.Contains("using UnityEditor"))
+                    // consumer's server build that has no engine at all. Matched as a using
+                    // directive rather than a substring — a doc comment may legitimately name
+                    // the type to explain why the record does not use it.
+                    if (HasEngineUsing(text))
                     {
                         issues.Error(
-                            $"'{Parts[p].Source}/{relative}' references Unity and cannot be projected "
-                            + "into a server. This is a bug in the package layout.");
+                            $"'{Parts[p].Source}/{relative}' has a using directive for a Unity "
+                            + "assembly and cannot be projected into a server. This is a bug in the "
+                            + "package layout.",
+                            null);
                         return false;
                     }
 
@@ -233,6 +237,28 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
             files.Sort((left, right) => string.CompareOrdinal(left.RelativePath, right.RelativePath));
             return files.Count > 0;
+        }
+
+        /// <summary>
+        /// True when the source has a using directive for a Unity assembly. Only leading
+        /// <c>using</c> lines count, so a doc comment or a string that happens to contain the
+        /// name is not mistaken for a dependency.
+        /// </summary>
+        private static bool HasEngineUsing(string text)
+        {
+            foreach (string rawLine in text.Split('\n'))
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("using UnityEngine", StringComparison.Ordinal)
+                    || line.StartsWith("using UnityEditor", StringComparison.Ordinal)
+                    || line.StartsWith("using static UnityEngine", StringComparison.Ordinal)
+                    || line.StartsWith("using static UnityEditor", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string BuildManifest(List<ProjectedFile> files)
@@ -395,4 +421,7 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
+
+
 

@@ -6,6 +6,25 @@ All notable changes to this package are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **A plain sphere or box no longer fails to bake.** The collider converter used
+  `default(Quaternion)` as its "no axis correction" sentinel, but that value is `(0,0,0,0)`
+  and Unity compares quaternions by dot product, so the guard fired even when nothing was
+  passed and multiplied the local rotation to a zero-length quaternion. The result was an
+  `ArgumentException` out of the editor window instead of a baked artifact. A nullable
+  sentinel replaces it, and the builder now turns an unexpected converter exception into an
+  issue that names the collider rather than letting it escape through `OnGUI`.
+- **Removing the installation keeps its "a modified file was kept" warning visible.** The
+  uninstall reported each component separately, so the second, empty report scrolled the
+  warning away. `UninstallAll` reports both in one result.
+- **The server projection checks for a Unity dependency, not the substring.** A doc comment
+  that names `UnityEngine.Vector3` to explain why a record avoids it is no longer mistaken
+  for a dependency; only a `using` directive counts.
+- **The installed Jitter2 gets a `csc.rsp`.** Upstream Jitter2 uses C# 10+ syntax that Unity
+  would reject at its default language version; the installer now writes `-langversion:latest`
+  next to the assembly. The snapshot is still unpatched upstream and its Unity compatibility
+  is not yet confirmed.
+
 ### Added
 - **Package skeleton and the Jitter-free assembly graph.** The package now exists as a
   UPM package with `package.json`, license, third party notices, line-ending policy and

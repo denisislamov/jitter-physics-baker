@@ -340,7 +340,7 @@ namespace DataSakura.JitterPhysics.Editor.Baking
             Vector3 center,
             out PhysicsVector3 position,
             out PhysicsQuaternion rotation,
-            Quaternion axisRotation = default)
+            Quaternion? axisRotation = null)
         {
             Vector3 worldCenter = colliderTransform.TransformPoint(center);
             Quaternion inverseBody = Quaternion.Inverse(bodyRoot.rotation);
@@ -348,9 +348,14 @@ namespace DataSakura.JitterPhysics.Editor.Baking
             Vector3 localPosition = inverseBody * (worldCenter - bodyRoot.position);
             Quaternion localRotation = inverseBody * colliderTransform.rotation;
 
-            if (axisRotation != default)
+            // A nullable sentinel rather than default(Quaternion): default is (0,0,0,0), and
+            // Unity's Quaternion equality compares a dot product, so `value != default` is true
+            // even for that zero value. Multiplying by it would produce a zero-length rotation
+            // that cannot be canonicalized, which is exactly how a sphere or a box bake used to
+            // throw. HasValue is an honest "was an axis correction supplied".
+            if (axisRotation.HasValue)
             {
-                localRotation *= axisRotation;
+                localRotation *= axisRotation.Value;
             }
 
             position = ToVector(localPosition);
@@ -377,4 +382,5 @@ namespace DataSakura.JitterPhysics.Editor.Baking
         }
     }
 }
+
 

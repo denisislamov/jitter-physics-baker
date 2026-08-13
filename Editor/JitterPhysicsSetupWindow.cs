@@ -176,9 +176,11 @@ namespace DataSakura.JitterPhysics.Editor
                         "Remove",
                         "Cancel"))
                     {
-                        Run(Install.JitterPhysicsInstaller.Uninstall(
-                            Install.JitterPhysicsComponentIds.Integration));
-                        Run(Install.JitterPhysicsInstaller.Uninstall(
+                        // One combined operation, one log: two separate uninstalls would leave the
+                        // second, empty report on screen and scroll the "kept a modified file"
+                        // warning out of sight.
+                        Run(Install.JitterPhysicsInstaller.UninstallAll(
+                            Install.JitterPhysicsComponentIds.Integration,
                             Install.JitterPhysicsComponentIds.Jitter));
                     }
                 }
@@ -258,6 +260,7 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
+
 
 
 
