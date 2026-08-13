@@ -58,5 +58,12 @@ All notable changes to this package are documented here. The format is based on
   trailing bytes, empty input, hash mismatch, manifest disagreement and an artifact baked
   for another runtime — each rejected with its own error code and without producing a
   partially decoded artifact.
+- **Authoring components.** `JitterPhysicsLevel` owns the level identity, the geometry root
+  and the output folder; `JitterStaticBodySource` explicitly marks the root of one static
+  body and carries its stable `sourceId` and material constants; `JitterPhysicsWorldProfile`
+  holds the world settings that are baked into the artifact. Only colliders under a marked
+  source are collected and inactive objects are never included, so a designer can add
+  scenery without silently changing the level hash. Identifiers are sanitized once and then
+  kept: renaming an object does not change the artifact.
 
 [Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD
