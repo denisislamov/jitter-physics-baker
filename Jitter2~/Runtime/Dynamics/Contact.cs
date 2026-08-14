@@ -664,7 +664,7 @@ public struct ContactData
         /// </summary>
         public readonly Real TangentImpulse2 => Accumulated.GetElement(2);
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl((MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
         public void Initialize(ref RigidBodyData b1, ref RigidBodyData b2, in JVector point1, in JVector point2,
             in JVector n, bool newContact, Real restitution)
         {
@@ -715,7 +715,7 @@ public struct ContactData
             NormalTangentZ = Vector.Create(n.Z, tangent1.Z, tangent2.Z, 0);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl((MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
         public readonly unsafe bool UpdatePosition(ContactData* cd)
         {
             ref var b1 = ref cd->Body1.Data;
@@ -974,7 +974,7 @@ public struct ContactData
             return result;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl((MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
         public unsafe void PrepareForIterationAccelerated(ContactData* cd, Real idt)
         {
             ref var b1 = ref cd->Body1.Data;
@@ -1103,7 +1103,7 @@ public struct ContactData
             PenaltyBias = Math.Min(PenaltyBias, MaximumBias);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl((MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
         public unsafe void IterateAccelerated(ContactData* cd, bool applyBias)
         {
             ref var b1 = ref cd->Body1.Data;

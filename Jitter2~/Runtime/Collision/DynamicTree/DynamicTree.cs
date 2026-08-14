@@ -943,7 +943,7 @@ public partial class DynamicTree
     /// Surface Area Heuristic (SAH) search. This method guarantees the same
     /// result as a brute-force search, unlike the faster greedy version <see cref="FindBestGreedy"/>.
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
     private int FindBest(int node, int where)
     {
         ref Node nb = ref nodes[node];
@@ -998,7 +998,7 @@ public partial class DynamicTree
         return currentBest;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
     private int FindBestGreedy(int node, int where)
     {
         /*
@@ -1082,7 +1082,7 @@ public partial class DynamicTree
                 areaLeft = nodes[left].ExpandedBox.GetSurfaceArea();
 
                 // Lower bound cost of inserting under left child.
-                lowerCostLeft = inheritedCost + directCostLeft + double.Min(areaD - areaLeft, 0.0d);
+                lowerCostLeft = inheritedCost + directCostLeft + Math.Min(areaD - areaLeft, 0.0d);
             }
 
             //
@@ -1107,7 +1107,7 @@ public partial class DynamicTree
             {
                 // Right child is an internal node
                 areaRight = nodes[right].ExpandedBox.GetSurfaceArea();
-                lowerCostRight = inheritedCost + directCostRight + double.Min(areaD - areaRight, 0.0d);
+                lowerCostRight = inheritedCost + directCostRight + Math.Min(areaD - areaRight, 0.0d);
             }
 
             // If neither subtree offers improvement, stop descending.
@@ -1142,7 +1142,7 @@ public partial class DynamicTree
     }
 
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
     private int FindBestHeuristic(int node, int where)
     {
         ref TreeBox nodeTreeBox = ref nodes[node].ExpandedBox;

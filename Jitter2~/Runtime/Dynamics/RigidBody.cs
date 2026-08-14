@@ -840,11 +840,11 @@ public sealed class RigidBody : IPartitionedSetIndex, IDebugDrawable
     /// </exception>
     public void AddShapes(IEnumerable<RigidBodyShape> shapes, MassInertiaUpdateMode massInertiaMode)
     {
-        ArgumentNullException.ThrowIfNull(shapes);
+        if (shapes is null) throw new ArgumentNullException(nameof(shapes));
 
         foreach (RigidBodyShape shape in shapes)
         {
-            ArgumentNullException.ThrowIfNull(shape);
+            if (shape is null) throw new ArgumentNullException(nameof(shape));
 
             if (shape.IsRegistered)
             {
@@ -911,7 +911,7 @@ public sealed class RigidBody : IPartitionedSetIndex, IDebugDrawable
     /// </exception>
     public void AddShape(RigidBodyShape shape, MassInertiaUpdateMode massInertiaMode)
     {
-        ArgumentNullException.ThrowIfNull(shape);
+        if (shape is null) throw new ArgumentNullException(nameof(shape));
 
         if (shape.IsRegistered)
         {
@@ -1134,7 +1134,7 @@ public sealed class RigidBody : IPartitionedSetIndex, IDebugDrawable
     /// </exception>
     public void RemoveShape(RigidBodyShape shape, MassInertiaUpdateMode massInertiaMode)
     {
-        ArgumentNullException.ThrowIfNull(shape);
+        if (shape is null) throw new ArgumentNullException(nameof(shape));
 
         if (!InternalShapes.Remove(shape))
         {
@@ -1184,13 +1184,13 @@ public sealed class RigidBody : IPartitionedSetIndex, IDebugDrawable
     /// </exception>
     public void RemoveShapes(IEnumerable<RigidBodyShape> shapes, MassInertiaUpdateMode massInertiaMode)
     {
-        ArgumentNullException.ThrowIfNull(shapes);
+        if (shapes is null) throw new ArgumentNullException(nameof(shapes));
 
         HashSet<ulong> sids = new();
 
         foreach (var shape in shapes)
         {
-            ArgumentNullException.ThrowIfNull(shape);
+            if (shape is null) throw new ArgumentNullException(nameof(shape));
 
             if (shape.RigidBody != this)
             {

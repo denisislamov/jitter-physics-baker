@@ -1,14 +1,13 @@
 # Jitter2 snapshot provenance
 
-This folder is the dormant Jitter2 reference snapshot. Unity never imports it (the folder
-name ends with `~`); it is used for two things only:
+This folder holds the Jitter2 reference snapshot. Unity never imports it (the folder name
+ends with `~`). It is used for three things:
 
-1. the fallback copy installed into projects that have no Jitter2 of their own;
-2. the copy `Server~/Tests` compiles directly, so that CI verifies it.
+1. the sources, kept as close to upstream as possible, for audit and for re-syncing;
+2. the netstandard2.1 assembly built from them, which is what actually gets installed;
+3. the compatibility shims that assembly needs, in `Compat/`.
 
-**The snapshot is never edited by hand.** It is produced by `tools~/sync-jitter2.py`, and
-`jitter2.lock.json` records what it was produced from. A manual edit would make the lock
-describe something that no longer exists, which is precisely the drift the lock prevents.
+`jitter2.lock.json` records what the snapshot was produced from and how it was compiled.
 
 ## Current snapshot
 
@@ -19,46 +18,94 @@ describe something that no longer exists, which is precisely the drift the lock 
 | Commit | `c15bc6abfdda90a936975979a42f7a54a211084e` |
 | Library path | `src/Jitter2` |
 | Files | 96 `.cs` |
-| Patch set | `upstream-2.8.9-unpatched` |
+| Patch set | `unity-netstandard21-v1` |
+| Built assembly | `Prebuilt/Jitter2.Core.dll` (netstandard2.1) |
 
 Reproduce with:
 
 ```sh
-tools~/sync-jitter2.py --ref 2.8.9 --patch-set-id upstream-2.8.9-unpatched
+tools~/sync-jitter2.py --ref 2.8.9
+python3 tools~/patch-jitter2-netstandard.py
+bash tools~/build-jitter2-unity.sh
 ```
 
-## Applied patches
+## Why the package ships an assembly and not sources
 
-None. This is unmodified upstream.
+Unity compiles game assemblies at C# 9, and it ignores `-langversion` in an assembly's
+`csc.rsp`. The snapshot is written in a later language — file-scoped namespaces, primary
+constructors, `scoped` parameters, constant interpolated strings — so handing Unity the
+sources produces several hundred parse errors before anything else is even considered.
 
-## Known gap: this is not yet the consumer fork
+That limit applies to sources Unity compiles, not to an assembly it loads. So the package
+compiles the snapshot itself, with a current compiler, and installs the result as a managed
+plugin. The language problem disappears completely; what remains is the framework gap,
+because Unity's surface is .NET Standard 2.1.
 
-The specification targets a consumer that vendors a *patched* Jitter2 — single precision,
-`SolveMode.Deterministic`, single-threaded stepping, and a `JITTER_UNITY` define that
-swaps hardware intrinsics for software polyfills so the sources build under Unity's
-runtime.
+The same assembly is used by the Unity client and the dedicated server. That is not
+convenience. Jitter2 carries two implementations of its contact solver and support
+mapping, and picks between them on `Vector128.IsHardwareAccelerated`. If the server
+compiled the sources for a modern runtime it would take the accelerated path while the
+client took the scalar one, and the two would produce different simulations from the same
+artifact — the failure this package exists to prevent.
 
-Upstream 2.8.9 contains no `JITTER_UNITY` define and uses
-`System.Runtime.Intrinsics.Vector128` directly. The consequences are:
+## Compatibility shims (`Compat/`, additive, no upstream code touched)
 
-- the snapshot compiles and simulates correctly under .NET (`Server~/Tests` proves it);
-- installing it as a Unity fallback has **not** been validated, and is expected to need
-  the polyfill patch set first;
-- `compileProfile` in the lock therefore declares `"unityDefine": ""`,
-  `"polyfillProfile": "none"` and `"intrinsicsProfile": "hardware"` — the truth about
-  these sources, not the target state.
+| Shim | Replaces | Why it is needed |
+| --- | --- | --- |
+| `Vector128Shim.cs` | `System.Runtime.Intrinsics` | Added in .NET 5; absent from netstandard2.1. Implemented in software, so `IsHardwareAccelerated` is `false` and Jitter2 takes its own scalar paths. |
+| `NetStandardShims.cs` | `IsExternalInit`, `SkipLocalsInitAttribute` | Compiler contracts, satisfied by any declaration. |
+| `NetStandardShims.cs` | `PriorityQueue<,>` | Added in .NET 6. A binary min-heap. |
+| `InteropShims.cs` | `NativeMemory` | Added in .NET 6. Backed by `Marshal.AllocHGlobal`, with manual alignment. |
+| `InteropShims.cs` | `CollectionsMarshal.AsSpan` | Added in .NET 5. Must alias the list's storage, since callers sort through it; the layout assumption is verified at first use and throws rather than reading arbitrary memory. |
 
-When the consumer fork becomes available, sync it with `--source <path>` and update the
-compile profile. Both changes alter `sourceContentHash` and therefore
-`runtimeCompatibilityId`, which is the intended behaviour: a client and a server built
-against different Jitter sources must not be able to claim compatibility.
+`Vector128` and the shim types are `internal`. A public shim would put a type named
+`System.Runtime.Intrinsics.Vector128` in the assembly's surface, which collides by name
+with the real one for any consumer targeting .NET 5 or later — the server among them.
+
+Only `TreeBox` runs on the shim in anger; it compares and subtracts lane-wise, and IEEE-754
+makes those operations identical whether a CPU does four at once or one at a time.
+
+## Applied patches (`tools~/patch-jitter2-netstandard.py`)
+
+Only where a shim cannot help: static members added to types that already exist, which
+cannot be extended from outside. Every edit is local and behaviour-preserving, and the
+script is idempotent, so a re-sync re-applies them and fails loudly if one no longer
+matches.
+
+| Site | Change | Reason |
+| --- | --- | --- |
+| 4 files | `MethodImplOptions.AggressiveOptimization` → `(MethodImplOptions)512` | Enum member from .NET Core 3.0. A JIT hint with no observable semantics. |
+| `DynamicTree.cs` | `double.Min` → `Math.Min` | Generic math, .NET 7. |
+| `TreeBox.cs` | `VectorMin`/`VectorMax` go through a pointer, and become `internal` | Ref-safety rejects returning a ref derived from `this`; `internal` keeps the shim out of the public surface. |
+| `RigidBody.cs`, `World.cs`, `TransformedShape.cs`, `TriangleShape.cs` | throw helpers spelled out longhand | `ArgumentNullException.ThrowIfNull` (.NET 6), `ArgumentOutOfRangeException.ThrowIf*` (.NET 8), `ObjectDisposedException.ThrowIf` (.NET 7). Same exception, same parameter name. |
+| `World.Deterministic.cs` | `Enum.IsDefined(value)` → `Enum.IsDefined(typeof(SolveMode), value)` | Generic overload, .NET 5. |
+| `ThreadPool.cs` | `OperatingSystem.IsWindows()` → `RuntimeInformation.IsOSPlatform` | .NET 5. |
+| `World.cs` | `Interlocked` on `ulong` reinterpreted as `long` | Only the signed overloads exist in netstandard2.1; two's complement makes the result identical. |
+
+## Dependency shipped alongside
+
+`System.Runtime.CompilerServices.Unsafe.dll` is not part of netstandard2.1 and Unity does
+not deliver it to players, so it travels with the plugin. The installer skips it when the
+project already provides one, because two copies of the same assembly is a conflict Unity
+reports far from its cause.
+
+## Precision
+
+The lock declares `"precision": "f32"`. `Real` is a global using in `Precision.cs`, which
+reaches only code compiled together with the snapshot; projects that reference the built
+assembly restate the alias themselves.
 
 ## Update procedure
 
 1. Pin the revision to sync from.
 2. Run `tools~/sync-jitter2.py` with `--ref` (upstream) or `--source` (a local fork).
-3. Record the patch set and any deviations in this file.
-4. Verify with `tools~/verify-jitter2-lock.py` and `tools~/test-dotnet.sh`.
-5. Release the package and the consumer lock update as one atomic change.
+3. Run `tools~/patch-jitter2-netstandard.py`; investigate any patch it reports as failed.
+4. Run `tools~/build-jitter2-unity.sh` and commit `Prebuilt/`.
+5. Refresh `sourceContentHash` and verify with `tools~/verify-jitter2-lock.py`.
+6. Run `tools~/test-dotnet.sh`.
+7. Release the package and the consumer lock update as one atomic change.
 
+Any of these changes `sourceContentHash` and therefore `runtimeCompatibilityId`, which is
+intended: a client and a server built against different Jitter sources must not be able to
+claim compatibility, and existing artifacts must be re-baked.
 

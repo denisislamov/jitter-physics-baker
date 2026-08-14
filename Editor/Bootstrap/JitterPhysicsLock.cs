@@ -33,6 +33,8 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
             string compileProfileText,
             string compileProfileId,
             string precision,
+            string intrinsicsProfile,
+            string polyfillProfile,
             IReadOnlyList<string> includedFiles,
             IReadOnlyList<string> excludedFiles)
         {
@@ -45,6 +47,8 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
             CompileProfileText = compileProfileText;
             CompileProfileId = compileProfileId;
             Precision = precision;
+            IntrinsicsProfile = intrinsicsProfile;
+            PolyfillProfile = polyfillProfile;
             IncludedFiles = includedFiles;
             ExcludedFiles = excludedFiles;
         }
@@ -82,6 +86,35 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
 
         /// <summary>Floating point precision declared by the compile profile.</summary>
         public string Precision { get; }
+
+        /// <summary>
+        /// How the snapshot obtains SIMD: <c>hardware</c> means it uses
+        /// <c>System.Runtime.Intrinsics</c> directly.
+        /// </summary>
+        public string IntrinsicsProfile { get; }
+
+        /// <summary>
+        /// Which polyfill set the snapshot carries for runtimes that lack parts of the BCL it
+        /// uses; <c>none</c> means it carries none.
+        /// </summary>
+        public string PolyfillProfile { get; }
+
+        /// <summary>
+        /// Whether this snapshot can be compiled by Unity at all.
+        /// <para>
+        /// Two facts of the engine decide it, and neither is negotiable from the package side.
+        /// Unity compiles game assemblies at C# 9 and ignores <c>-langversion</c> in an
+        /// assembly's <c>csc.rsp</c>, so a snapshot written with file-scoped namespaces or
+        /// collection expressions cannot parse. And Unity's script reference assemblies are
+        /// .NET Standard 2.1, which does not contain <c>System.Runtime.Intrinsics</c>, so a
+        /// snapshot compiled against hardware intrinsics cannot bind. A snapshot is only
+        /// installable into <c>Assets/</c> once a patch set has resolved both, which the
+        /// profile records as a non-hardware intrinsics profile and a polyfill set.
+        /// </para>
+        /// </summary>
+        public bool SupportsUnity =>
+            !string.Equals(IntrinsicsProfile, "hardware", StringComparison.Ordinal)
+            && !string.Equals(PolyfillProfile, "none", StringComparison.Ordinal);
 
         /// <summary>Glob patterns selecting the hashed sources.</summary>
         public IReadOnlyList<string> IncludedFiles { get; }
@@ -140,6 +173,8 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
                 profileText,
                 ArtifactCodec.JitterPhysicsHash.Sha256HexUtf8(profileText),
                 profile.StringMember("precision", string.Empty),
+                profile.StringMember("intrinsicsProfile", string.Empty),
+                profile.StringMember("polyfillProfile", string.Empty),
                 root.StringArrayMember("includedFiles"),
                 root.StringArrayMember("excludedFiles"));
         }
@@ -246,4 +281,7 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
         }
     }
 }
+
+
+
 

@@ -20,10 +20,27 @@ All notable changes to this package are documented here. The format is based on
 - **The server projection checks for a Unity dependency, not the substring.** A doc comment
   that names `UnityEngine.Vector3` to explain why a record avoids it is no longer mistaken
   for a dependency; only a `using` directive counts.
-- **The installed Jitter2 gets a `csc.rsp`.** Upstream Jitter2 uses C# 10+ syntax that Unity
-  would reject at its default language version; the installer now writes `-langversion:latest`
-  next to the assembly. The snapshot is still unpatched upstream and its Unity compatibility
-  is not yet confirmed.
+- **`Install Jitter2` works.** The button previously refused, because Unity fixes game
+  assemblies at C# 9 — it also ignores `-langversion` in an assembly's `csc.rsp`, which an
+  earlier attempt had relied on — and the snapshot is written in a later language. That
+  limit applies to sources Unity compiles, not to an assembly it loads, so the package now
+  compiles the snapshot itself into a netstandard2.1 assembly and installs that as a
+  managed plugin. The language barrier disappears outright; the remaining framework gaps
+  are closed by `Jitter2~/Compat` (a software `Vector128`, `PriorityQueue`, `NativeMemory`,
+  `CollectionsMarshal.AsSpan`, `IsExternalInit`, `SkipLocalsInit`) and by seventeen local,
+  behaviour-preserving source edits applied by `tools~/patch-jitter2-netstandard.py`.
+
+  The dedicated server now references the same assembly instead of compiling the snapshot
+  for a modern runtime. This is a correctness fix, not a build simplification: Jitter2
+  keeps two implementations of its contact solver and support mapping and chooses between
+  them on `Vector128.IsHardwareAccelerated`, so a source-built server would have taken the
+  accelerated path while the Unity client took the scalar one, and the two would have
+  produced different simulations from the same artifact.
+
+  `patchSetId` becomes `unity-netstandard21-v1` and the compile profile now declares
+  `"intrinsicsProfile": "scalar-shim"` and `"polyfillProfile": "netstandard21"`. Both
+  change `sourceContentHash` and therefore `runtimeCompatibilityId`, so **artifacts baked
+  with an earlier release must be re-baked**.
 
 ### Added
 - **Package skeleton and the Jitter-free assembly graph.** The package now exists as a

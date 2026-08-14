@@ -46,12 +46,12 @@ public struct TreeBox : IEquatable<TreeBox>
     /// <summary>
     /// Returns a <see cref="VectorReal"/> view of the <see cref="Min"/> vector for SIMD operations.
     /// </summary>
-    public readonly ref VectorReal VectorMin => ref Unsafe.As<JVector, VectorReal>(ref Unsafe.AsRef(in this.Min));
+    internal readonly unsafe ref VectorReal VectorMin => ref Unsafe.AsRef<VectorReal>(Unsafe.AsPointer(ref Unsafe.AsRef(in this.Min)));
 
     /// <summary>
     /// Returns a <see cref="VectorReal"/> view of the <see cref="Max"/> vector for SIMD operations.
     /// </summary>
-    public readonly ref VectorReal VectorMax => ref Unsafe.As<JVector, VectorReal>(ref Unsafe.AsRef(in this.Max));
+    internal readonly unsafe ref VectorReal VectorMax => ref Unsafe.AsRef<VectorReal>(Unsafe.AsPointer(ref Unsafe.AsRef(in this.Max)));
 
     /// <summary>
     /// Creates a new <see cref="TreeBox"/> from minimum and maximum corner vectors.

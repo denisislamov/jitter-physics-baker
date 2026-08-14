@@ -40,7 +40,7 @@ public class TransformedShape : RigidBodyShape
     /// </exception>
     public TransformedShape(RigidBodyShape shape, in JVector translation, in JMatrix transform)
     {
-        ArgumentNullException.ThrowIfNull(shape);
+        if (shape is null) throw new ArgumentNullException(nameof(shape));
 
         OriginalShape = shape;
         this.translation = ArgumentCheck.Finite(translation, nameof(translation));

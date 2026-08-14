@@ -96,43 +96,89 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 return new JitterPhysicsInstallResult(null, issues);
             }
 
-            string sourceFolder = Path.Combine(packageRoot, "Jitter2~", "Runtime");
-            string templatePath = Path.Combine(
-                packageRoot, "Jitter2~", "StandaloneUnity", "Jitter2.Core.asmdef.template.json");
+            string sourceFolder = Path.Combine(packageRoot, "Jitter2~", "Prebuilt");
 
-            if (!Directory.Exists(sourceFolder) || !File.Exists(templatePath))
+            if (!Directory.Exists(sourceFolder)
+                || !File.Exists(Path.Combine(sourceFolder, "Jitter2.Core.dll")))
             {
                 issues.Error(
-                    "The dormant Jitter2 snapshot is missing from the package; run tools~/sync-jitter2.py.");
+                    "The prebuilt Jitter2 assembly is missing from the package; run "
+                    + "tools~/build-jitter2-unity.sh.");
                 return new JitterPhysicsInstallResult(null, issues);
             }
 
-            issues.Warning(
-                "The snapshot in this package release is unpatched upstream Jitter2: it has no "
-                + "JITTER_UNITY define and uses hardware intrinsics, so it is verified under .NET "
-                + "but not yet validated as a Unity fallback. See Jitter2~/PATCHES.md.");
-
-            // Upstream Jitter2 uses C# 10+ syntax (file-scoped namespaces, collection
-            // expressions), while Unity compiles an asmdef assembly at its default language
-            // version. An assembly-scoped csc.rsp raises it just for this folder, which is the
-            // minimum that lets the snapshot compile at all; it changes syntax acceptance, not
-            // semantics, so it does not affect the artifact bytes or the source hash.
-            var extraFiles = new[]
+            // Refused before anything is written. Unity fixes game assemblies at C# 9, so a
+            // snapshot written in a later language cannot be delivered as sources at all; the
+            // package ships it compiled instead. A release whose compile profile still describes
+            // the raw upstream form has no such assembly, and installing it would fill the
+            // project with errors in a folder the user never chose to edit.
+            JitterPhysicsLock lockFile;
+            try
             {
-                ("csc.rsp", System.Text.Encoding.UTF8.GetBytes("-langversion:latest\n")),
-            };
+                lockFile = JitterPhysicsLock.Load(packageRoot);
+            }
+            catch (Exception exception)
+            {
+                issues.Error($"'{JitterPhysicsLock.FileName}' could not be read: {exception.Message}");
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            if (!lockFile.SupportsUnity)
+            {
+                issues.Error(
+                    "This package release ships an unpatched upstream Jitter2 snapshot, which "
+                    + "Unity cannot use, so it will not be installed. Add a Unity-compatible "
+                    + "Jitter2 to the project yourself — the package bakes against whatever copy "
+                    + "it finds. See Jitter2~/PATCHES.md.");
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            // Shipped alongside because netstandard2.1 does not define it and Unity does not
+            // deliver it to players. A project that already has one keeps it: two copies of the
+            // same assembly is a conflict Unity reports far from its cause.
+            var skipped = new List<string>();
+            if (ProjectContainsFile("System.Runtime.CompilerServices.Unsafe.dll"))
+            {
+                skipped.Add("System.Runtime.CompilerServices.Unsafe.dll");
+                issues.Warning(
+                    "The project already provides System.Runtime.CompilerServices.Unsafe, so the "
+                    + "package copy was not installed.");
+            }
 
             return Install(
                 JitterPhysicsComponentIds.Jitter,
                 sourceFolder,
                 targetFolder,
-                JitterAsmdefName,
-                templatePath,
+                null,
+                null,
                 compatibility.ExpectedSourceHash,
                 receipt,
                 issues,
-                extraFiles);
+                "*.dll",
+                skipped);
         }
+
+        /// <summary>Reports whether an asset with the given file name already exists in the project.</summary>
+        private static bool ProjectContainsFile(string fileName)
+        {
+            string[] matches = Directory.GetFiles("Assets", fileName, SearchOption.AllDirectories);
+            return matches.Length > 0;
+        }
+
+        /// <summary>Ordinal name lookup, spelled out to avoid the span-based Contains overload.</summary>
+        private static bool ContainsName(IReadOnlyList<string> names, string candidate)
+        {
+            for (int i = 0; i < names.Count; i++)
+            {
+                if (string.Equals(names[i], candidate, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
 
         /// <summary>Installs or updates the Jitter-dependent adapter assembly.</summary>
         public static JitterPhysicsInstallResult InstallIntegration(string targetFolder = null)
@@ -191,6 +237,31 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 compatibility.ActualSourceHash,
                 receipt,
                 issues);
+        }
+
+        /// <summary>
+        /// Adjusts the adapter's assembly definition to the form Jitter2 takes in this project.
+        /// </summary>
+        /// <remarks>
+        /// An asmdef's <c>references</c> list names other assembly definitions. When Jitter2 is a
+        /// precompiled plugin there is no assembly definition to name, and leaving the entry in
+        /// makes Unity report a missing reference; auto-referenced plugins are visible to the
+        /// adapter without being listed. A project with its own source-based Jitter2 does have an
+        /// asmdef, and there the entry is exactly what is needed.
+        /// </remarks>
+        private static byte[] TailorIntegrationAsmdef(byte[] template)
+        {
+            if (ProjectContainsFile(JitterAsmdefName))
+            {
+                return template;
+            }
+
+            string text = Encoding.UTF8.GetString(template);
+            string trimmed = text
+                .Replace("\n    \"DataSakura.JitterPhysics.ArtifactCodec\",\n    \"Jitter2.Core\"\n",
+                    "\n    \"DataSakura.JitterPhysics.ArtifactCodec\"\n");
+
+            return Encoding.UTF8.GetBytes(trimmed);
         }
 
         /// <summary>
@@ -361,7 +432,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
             string sourceHash,
             JitterPhysicsInstallReceipt receipt,
             JitterPhysicsIssueLog issues,
-            IReadOnlyList<(string RelativePath, byte[] Content)> extraFiles = null)
+            string searchPattern = "*.cs",
+            IReadOnlyList<string> skipFileNames = null)
         {
             JitterPhysicsInstalledComponent existing = receipt.Component(componentId);
             if (existing != null && !VerifyUnmodified(existing, issues))
@@ -371,8 +443,13 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
             var staged = new List<(string RelativePath, byte[] Content)>();
 
-            foreach (string file in Directory.GetFiles(sourceFolder, "*.cs", SearchOption.AllDirectories))
+            foreach (string file in Directory.GetFiles(sourceFolder, searchPattern, SearchOption.AllDirectories))
             {
+                if (skipFileNames != null && ContainsName(skipFileNames, Path.GetFileName(file)))
+                {
+                    continue;
+                }
+
                 string relative = file.Substring(sourceFolder.Length)
                     .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                     .Replace('\\', '/');
@@ -382,22 +459,27 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
             if (staged.Count == 0)
             {
-                issues.Error($"No sources found under '{sourceFolder}'.");
+                issues.Error($"No files matching '{searchPattern}' found under '{sourceFolder}'.");
                 return new JitterPhysicsInstallResult(null, issues);
             }
 
             // The assembly definition is written from a template rather than copied from a folder
             // Unity compiles, because the package itself must never contain an asmdef that
             // references Jitter2 - that is the whole reason a clean import works.
-            staged.Add((asmdefName, File.ReadAllBytes(asmdefTemplatePath)));
-
-            if (extraFiles != null)
+            //
+            // A precompiled plugin has none: Unity derives the assembly name from the file, and an
+            // asmdef next to a .dll would describe an assembly with no sources in it.
+            if (asmdefName != null)
             {
-                for (int i = 0; i < extraFiles.Count; i++)
+                byte[] asmdef = File.ReadAllBytes(asmdefTemplatePath);
+                if (string.Equals(asmdefName, IntegrationAsmdefName, StringComparison.Ordinal))
                 {
-                    staged.Add(extraFiles[i]);
+                    asmdef = TailorIntegrationAsmdef(asmdef);
                 }
+
+                staged.Add((asmdefName, asmdef));
             }
+
 
             staged.Sort((left, right) => string.CompareOrdinal(left.RelativePath, right.RelativePath));
 
@@ -652,6 +734,18 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

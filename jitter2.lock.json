@@ -3,15 +3,24 @@
   "assemblyName": "Jitter2.Core",
   "upstreamRepository": "https://github.com/notgiven688/jitterphysics2",
   "upstreamCommit": "c15bc6abfdda90a936975979a42f7a54a211084e",
-  "patchSetId": "upstream-2.8.9-unpatched",
-  "sourceContentHash": "sha256:cfcfab5cb19a73c2fc15ddd556e50a38d8b414dd6f8a50e98672f8b4df9d7bcb",
+  "patchSetId": "unity-netstandard21-v1",
+  "sourceContentHash": "sha256:d67ac0c421687ec7308501bf4b8bcba9c33bed7845a0bfe64d4675b2326cce85",
   "integrationApiVersion": 1,
   "compileProfile": {
     "precision": "f32",
     "allowUnsafe": true,
     "unityDefine": "",
-    "polyfillProfile": "none",
-    "intrinsicsProfile": "hardware"
+    "polyfillProfile": "netstandard21",
+    "intrinsicsProfile": "scalar-shim"
+  },
+  "unityAssembly": {
+    "targetFramework": "netstandard2.1",
+    "project": "Jitter2~/StandaloneUnity/Jitter2.Core.csproj",
+    "output": "Jitter2~/Prebuilt",
+    "files": [
+      "Jitter2.Core.dll",
+      "System.Runtime.CompilerServices.Unsafe.dll"
+    ]
   },
   "includedFiles": [
     "**/*.cs",
@@ -25,3 +34,4 @@
     "**/Tests/**"
   ]
 }
+

@@ -259,7 +259,7 @@ public sealed partial class World : IDisposable
     /// <returns>A monotonically increasing unique identifier.</returns>
     public static ulong RequestId()
     {
-        return Interlocked.Increment(ref _idCounter);
+        return unchecked((ulong)Interlocked.Increment(ref System.Runtime.CompilerServices.Unsafe.As<ulong, long>(ref _idCounter)));
     }
 
     /// <summary>
@@ -273,7 +273,7 @@ public sealed partial class World : IDisposable
     {
         if (count < 1) throw new ArgumentOutOfRangeException(nameof(count), "Count must be greater zero.");
         ulong count64 = (ulong)count;
-        ulong max = Interlocked.Add(ref _idCounter, count64) + 1;
+        ulong max = unchecked((ulong)Interlocked.Add(ref System.Runtime.CompilerServices.Unsafe.As<ulong, long>(ref _idCounter), (long)count64)) + 1;
         return (max - count64, max);
     }
 
@@ -672,7 +672,7 @@ public sealed partial class World : IDisposable
     public void ForceSleepIsland(Island island)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(island);
+        if (island is null) throw new ArgumentNullException(nameof(island));
 
         if (!islands.Contains(island))
         {
@@ -814,7 +814,7 @@ public sealed partial class World : IDisposable
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        if (disposed) throw new ObjectDisposedException(GetType().FullName);
     }
 
     /// <summary>

@@ -1,0 +1,4 @@
+# Intermediate build output. The shipped assembly lives in ../Prebuilt and is committed.
+bin/
+obj/
+

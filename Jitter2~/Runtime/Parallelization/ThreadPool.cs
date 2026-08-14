@@ -176,7 +176,7 @@ public sealed class ThreadPool
         // .NET versions below 9.0 have a known issue that can cause hangups or freezing
         // when debugging on non-Windows systems. See: https://github.com/dotnet/runtime/pull/95555
         // To avoid this issue, multi-threading is disabled when a debugger is attached on non-Windows systems.
-        if (!OperatingSystem.IsWindows() && Debugger.IsAttached)
+        if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows) && Debugger.IsAttached)
         {
             Debug.WriteLine(
                 "Multi-threading disabled to prevent potential hangups: Debugger attached, " +

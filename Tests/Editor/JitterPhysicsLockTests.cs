@@ -29,6 +29,50 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             Assert.That(lockFile.SourceContentHash, Does.StartWith(JitterPhysicsSourceHasher.HashPrefix));
         }
 
+        /// <summary>
+        /// A snapshot is only offered for installation into <c>Assets/</c> once a patch set has
+        /// made it compilable by Unity, and the compile profile is where that fact is recorded.
+        /// The engine leaves no room here: game assemblies compile at C# 9 with
+        /// <c>-langversion</c> in <c>csc.rsp</c> ignored, and the script reference assemblies are
+        /// .NET Standard 2.1, which has no <c>System.Runtime.Intrinsics</c>. Installing an
+        /// unpatched snapshot therefore does not produce a warning, it produces a project that
+        /// no longer compiles at all.
+        /// </summary>
+        [TestCase("hardware", "none", false)]
+        [TestCase("hardware", "unity", false)]
+        [TestCase("scalar", "none", false)]
+        [TestCase("scalar", "unity", true)]
+        public void SnapshotIsOnlyUnitySafeWhenTheProfileDeclaresBothPatches(
+            string intrinsics, string polyfill, bool expected)
+        {
+            JitterPhysicsLock parsed = JitterPhysicsLock.Parse(
+                "{\n"
+                + "  \"assemblyName\": \"Jitter2.Core\",\n"
+                + "  \"compileProfile\": {\n"
+                + $"    \"intrinsicsProfile\": \"{intrinsics}\",\n"
+                + $"    \"polyfillProfile\": \"{polyfill}\"\n"
+                + "  }\n"
+                + "}\n");
+
+            Assert.That(parsed.SupportsUnity, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ShippedSnapshotDeclaresTheUnityCompatibleProfileAndIsOffered()
+        {
+            // Pins the shipped state. Unity cannot compile the snapshot's sources at all - it
+            // fixes game assemblies at C# 9 - so the package compiles them itself into a
+            // netstandard2.1 assembly, where the missing framework surface is supplied by
+            // Jitter2~/Compat. The profile records both halves of that: no hardware intrinsics,
+            // and a named polyfill set. Reverting either one must fail this test, because it
+            // would mean the install button is offering something that cannot work.
+            JitterPhysicsLock lockFile = LoadLock();
+
+            Assert.That(lockFile.IntrinsicsProfile, Is.EqualTo("scalar-shim"));
+            Assert.That(lockFile.PolyfillProfile, Is.EqualTo("netstandard21"));
+            Assert.That(lockFile.SupportsUnity, Is.True);
+        }
+
         [Test]
         public void CompileProfileIsSerializedTheWayThePythonToolingSerializesIt()
         {
@@ -237,6 +281,8 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
     }
 }
+
+
 
 
 

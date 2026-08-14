@@ -24,6 +24,7 @@ namespace DataSakura.JitterPhysics.Editor
         private JitterPhysicsCompatibilityReport report;
         private Vector2 scroll;
         private string installLog;
+        private bool snapshotSupportsUnity;
 
         [MenuItem(MenuPath, false, 100)]
         private static void Open()
@@ -42,6 +43,32 @@ namespace DataSakura.JitterPhysics.Editor
         private void Refresh()
         {
             report = JitterPhysicsCompatibilityReport.Create();
+            snapshotSupportsUnity = ReadSnapshotSupportsUnity();
+        }
+
+        /// <summary>
+        /// Whether the shipped snapshot could be compiled by Unity if it were installed. Read
+        /// here so the button can be disabled with a reason, rather than letting the user find
+        /// out from a project that no longer compiles.
+        /// </summary>
+        private static bool ReadSnapshotSupportsUnity()
+        {
+            string packageRoot = JitterPhysicsCompatibilityReport.ResolvePackageRootPath();
+            if (string.IsNullOrEmpty(packageRoot))
+            {
+                return false;
+            }
+
+            try
+            {
+                return JitterPhysicsLock.Load(packageRoot).SupportsUnity;
+            }
+            catch (System.Exception)
+            {
+                // An unreadable lock is already reported by the compatibility report above; for
+                // the button the safe reading is "do not offer an install we cannot vouch for".
+                return false;
+            }
         }
 
         private void OnGUI()
@@ -128,6 +155,16 @@ namespace DataSakura.JitterPhysics.Editor
                 + "instead of overwritten.",
                 MessageType.Info);
 
+            if (!snapshotSupportsUnity)
+            {
+                EditorGUILayout.HelpBox(
+                    "\"Install Jitter2\" is unavailable in this package release: its compile "
+                    + "profile does not declare a Unity-compatible build, so there is no assembly "
+                    + "to install. Add a Jitter2 to the project yourself — baking uses whichever "
+                    + "copy is present.",
+                    MessageType.Warning);
+            }
+
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Validate installation"))
@@ -136,7 +173,8 @@ namespace DataSakura.JitterPhysics.Editor
                 }
 
                 using (new EditorGUI.DisabledScope(
-                    report.Status != JitterPhysicsCompatibilityStatus.Missing))
+                    !snapshotSupportsUnity
+                    || report.Status != JitterPhysicsCompatibilityStatus.Missing))
                 {
                     if (GUILayout.Button("Install Jitter2"))
                     {
@@ -260,6 +298,10 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
+
+
+
+
 
 
 

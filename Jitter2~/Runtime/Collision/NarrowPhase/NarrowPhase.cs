@@ -93,7 +93,7 @@ public static class NarrowPhase
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
         public bool SolveMpr<Ta,Tb>(in Ta supportA, in Tb supportB, in JQuaternion orientationB,
             in JVector positionB, Real epaThreshold,
             out JVector pointA, out JVector pointB, out JVector normal, out Real penetration)

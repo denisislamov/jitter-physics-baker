@@ -347,7 +347,7 @@ public unsafe struct ConvexPolytope
     /// This operation invalidates references from previous <see cref="GetClosestTriangle"/> calls.
     /// </remarks>
     [SkipLocalsInit]
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization: absent from netstandard2.1 */)]
     public bool AddVertex(in Vertex vertex)
     {
         Debug.Assert(vPointer < MaxVertices, "Maximum number of vertices exceeded.");

@@ -52,7 +52,7 @@ public sealed partial class World
         get => solveMode;
         set
         {
-            if (!Enum.IsDefined(value))
+            if (!Enum.IsDefined(typeof(SolveMode), value))
             {
                 throw new ArgumentOutOfRangeException(nameof(value), value,
                     "The solve mode must be a defined enum value.");
