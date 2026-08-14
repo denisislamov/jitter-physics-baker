@@ -144,8 +144,10 @@ namespace DataSakura.JitterPhysics.Editor.Baking
                     // Duplicates are usually a copy-pasted object. Left alone they would make
                     // record order ambiguous and the bake nondeterministic.
                     issues.Error(
-                        $"The source id '{sourceId}' is already used by '{previous.name}'. "
-                        + "Give one of them a different id.",
+                        $"Duplicate Source Id '{sourceId}': '{source.name}' and "
+                        + $"'{previous.name}' both use it. Duplicating a GameObject copies its "
+                        + "Source Id. Click this error to select the offending object, then set "
+                        + "Jitter Static Body Source > Source Id to a unique value before baking.",
                         source);
                     continue;
                 }
@@ -261,5 +263,4 @@ namespace DataSakura.JitterPhysics.Editor.Baking
         }
     }
 }
-
 

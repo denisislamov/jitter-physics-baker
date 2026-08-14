@@ -115,7 +115,10 @@ namespace DataSakura.JitterPhysics.Editor.Baking
             else
             {
                 Debug.LogError(
-                    Contracts.JitterPhysicsPackage.LogPrefix + "Bake failed; nothing was written.", level);
+                    Contracts.JitterPhysicsPackage.LogPrefix
+                    + "Bake failed; nothing was written. See the preceding [JitterPhysics] "
+                    + "validation errors; click an error to select its object.",
+                    level);
             }
         }
 
@@ -179,4 +182,3 @@ namespace DataSakura.JitterPhysics.Editor.Baking
         }
     }
 }
-

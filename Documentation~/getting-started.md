@@ -164,6 +164,22 @@ This is the property the whole format exists for. A baker that emitted a hash ta
 enumeration order, or wrote a timestamp, would still produce a level that loads and plays -
 and a client and a server built minutes apart would quietly disagree about it.
 
+### See what changed since the bake
+
+Enable **Tools > DataSakura > Jitter Physics > Show Baked Geometry Overlay** while looking at
+the level in Scene View.
+
+- Green wire geometry is the exact last baked snapshot.
+- Red wire geometry is current geometry that is new or differs from that snapshot.
+- A moved collider shows its old baked pose in green and its current pose in red.
+- A collider deleted after the bake leaves a green ghost until the next successful bake.
+- An enabled collider under the geometry root but outside every `JitterStaticBodySource` is
+  red, because it cannot enter the artifact.
+
+The legend at the bottom of Scene View reports baked, matching and red shape counts for each
+loaded level. The overlay is read-only: enabling it never validates, repairs ids or writes an
+artifact. Toggle the same menu item off when the comparison is no longer needed.
+
 ## 6. Load it in Unity
 
 The package does not own the tick loop, so this is code you write. The shape of it:
@@ -302,4 +318,3 @@ the JIT and the floating-point environment, none of which this package controls.
 
 What it guarantees is that both sides start from the same geometry and know, before the match
 begins, whether they agree.
-

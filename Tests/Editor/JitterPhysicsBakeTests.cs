@@ -216,9 +216,11 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             JitterPhysicsLevel level = CreateLevel(out Transform root);
 
             JitterStaticBodySource first = CreateSource(root, "cover", new Vector3(-2f, 0f, 0f));
+            first.name = "OriginalCover";
             first.gameObject.AddComponent<BoxCollider>();
 
             JitterStaticBodySource second = CreateSource(root, "cover", new Vector3(2f, 0f, 0f));
+            second.name = "DuplicatedCover";
             second.gameObject.AddComponent<BoxCollider>();
 
             JitterPhysicsBuildResult result = JitterPhysicsArtifactBuilder.Build(level, RuntimeId);
@@ -227,6 +229,16 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             // nondeterminism the artifact format exists to rule out.
             Assert.That(result.Succeeded, Is.False);
             Assert.That(result.Issues.HasErrors, Is.True);
+            Assert.That(result.Issues.Issues, Has.Count.EqualTo(1));
+
+            JitterPhysicsIssue issue = result.Issues.Issues[0];
+            Assert.That(issue.Context, Is.SameAs(second));
+            Assert.That(issue.Message, Does.Contain("Duplicate Source Id 'cover'"));
+            Assert.That(issue.Message, Does.Contain("'OriginalCover'"));
+            Assert.That(issue.Message, Does.Contain("'DuplicatedCover'"));
+            Assert.That(issue.Message, Does.Contain("Duplicating a GameObject copies its Source Id"));
+            Assert.That(issue.Message, Does.Contain("Jitter Static Body Source > Source Id"));
+            Assert.That(issue.Message, Does.Contain("unique value"));
         }
 
         [Test]

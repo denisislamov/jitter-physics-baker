@@ -101,6 +101,10 @@ it. See `Server~/README.md`.
   blocks baking rather than being worked around. The write is staged and re-hashed from
   disk before it replaces the previous artifact, a failed bake leaves that artifact intact,
   and baking in Play Mode is refused.
+- `Tools > DataSakura > Jitter Physics > Show Baked Geometry Overlay` — toggles a read-only
+  Scene View comparison. Green is the exact last baked snapshot; red is current geometry
+  that is new or changed. Removed geometry remains as a green ghost until the next bake, and
+  unmarked colliders under the geometry root are red because they cannot enter the artifact.
 - `Tools > DataSakura > Jitter Physics > Install > ...` — install the fallback Jitter2 copy
   or the Jitter adapter, install and verify the server runtime sources, validate the
   installation, and remove what the package owns. Every action is explicit, an external
