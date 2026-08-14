@@ -66,6 +66,13 @@ namespace DataSakura.JitterPhysics.Editor.Install
         private const string UnsafeAssemblyFileName = "System.Runtime.CompilerServices.Unsafe.dll";
 
         /// <summary>
+        /// Scripting define set while the integration adapter is installed. Assemblies that use the
+        /// adapter — the demo runtime, a game's own Jitter code — gate on it so they compile only
+        /// when the adapter exists and never break a project that has not installed it yet.
+        /// </summary>
+        public const string IntegrationDefine = "DATASAKURA_JITTER_INTEGRATION";
+
+        /// <summary>
         /// Installs or updates the dormant Jitter2 snapshot. Refused when the project already has
         /// a Jitter2 the package does not own.
         /// </summary>
@@ -189,6 +196,53 @@ namespace DataSakura.JitterPhysics.Editor.Install
             return matches.Length > 0;
         }
 
+        /// <summary>
+        /// Adds or removes a scripting define symbol for the build targets that matter here — the
+        /// active one, which is what the editor compiles against, and Standalone, which is where the
+        /// dedicated server and desktop players are built.
+        /// </summary>
+        /// <remarks>
+        /// A define constraint is evaluated with the symbols of the target being compiled, so a
+        /// symbol set only for a target the project never builds would leave the gated assembly
+        /// invisible. Editing the set is idempotent: the symbol is added once and removed once.
+        /// </remarks>
+        private static void SetScriptingDefine(string symbol, bool enabled)
+        {
+            var targets = new HashSet<UnityEditor.Build.NamedBuildTarget>
+            {
+                UnityEditor.Build.NamedBuildTarget.Standalone,
+                UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(
+                    EditorUserBuildSettings.selectedBuildTargetGroup),
+            };
+
+            foreach (UnityEditor.Build.NamedBuildTarget target in targets)
+            {
+                if (target == UnityEditor.Build.NamedBuildTarget.Unknown)
+                {
+                    continue;
+                }
+
+                PlayerSettings.GetScriptingDefineSymbols(target, out string[] current);
+                var symbols = new List<string>(current);
+
+                bool present = symbols.Contains(symbol);
+                if (enabled && !present)
+                {
+                    symbols.Add(symbol);
+                }
+                else if (!enabled && present)
+                {
+                    symbols.RemoveAll(existing => string.Equals(existing, symbol, StringComparison.Ordinal));
+                }
+                else
+                {
+                    continue;
+                }
+
+                PlayerSettings.SetScriptingDefineSymbols(target, symbols.ToArray());
+            }
+        }
+
         /// <summary>Ordinal name lookup, spelled out to avoid the span-based Contains overload.</summary>
         private static bool ContainsName(IReadOnlyList<string> names, string candidate)
         {
@@ -252,7 +306,7 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 return new JitterPhysicsInstallResult(null, issues);
             }
 
-            return Install(
+            JitterPhysicsInstallResult result = Install(
                 JitterPhysicsComponentIds.Integration,
                 sourceFolder,
                 targetFolder,
@@ -261,6 +315,16 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 compatibility.ActualSourceHash,
                 receipt,
                 issues);
+
+            // Only when the adapter is actually present. A demo or game assembly that references
+            // it is gated behind this symbol so it compiles the moment the adapter exists and stays
+            // out of the build until then, rather than turning a clean project into CS0246.
+            if (result.Succeeded)
+            {
+                SetScriptingDefine(IntegrationDefine, enabled: true);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -470,6 +534,13 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
             receipt.Without(componentId).Save(JitterPhysicsInstallReceipt.DefaultPath);
             AssetDatabase.Refresh();
+
+            // The gate symbol lives and dies with the adapter it guards, so assemblies that depend
+            // on it stop compiling into the build the moment the adapter is gone.
+            if (string.Equals(componentId, JitterPhysicsComponentIds.Integration, StringComparison.Ordinal))
+            {
+                SetScriptingDefine(IntegrationDefine, enabled: false);
+            }
 
             return new JitterPhysicsInstallResult(removed, issues);
         }
@@ -855,13 +926,6 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
-
-
-
-
-
-
-
 
 
 

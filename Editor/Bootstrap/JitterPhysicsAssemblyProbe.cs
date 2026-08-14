@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using DataSakura.JitterPhysics.Contracts;
 using UnityEditor;
@@ -63,9 +64,21 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
                 throw new ArgumentException("Assembly name is required.", nameof(assemblyName));
             }
 
-            bool exists = CompilationPipeline
+            bool compiledFromSources = CompilationPipeline
                 .GetAssemblies(AssembliesType.Editor)
                 .Any(assembly => string.Equals(assembly.name, assemblyName, StringComparison.Ordinal));
+
+            // GetAssemblies only returns assemblies Unity compiles from sources. The fallback
+            // installer deliberately delivers Jitter2 as a precompiled DLL (its upstream sources
+            // require a newer language version than Unity supports), so ignoring this list makes
+            // a successful install look Missing forever and blocks installation of the adapter.
+            bool precompiled = CompilationPipeline
+                .GetPrecompiledAssemblyPaths(
+                    CompilationPipeline.PrecompiledAssemblySources.UserAssembly)
+                .Any(path => string.Equals(
+                    Path.GetFileNameWithoutExtension(path), assemblyName, StringComparison.Ordinal));
+
+            bool exists = compiledFromSources || precompiled;
 
             // An .asmdef may exist while the assembly failed to compile, and a precompiled
             // plugin has no .asmdef at all; both cases are reported rather than collapsed.

@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using DataSakura.JitterPhysics.ArtifactCodec;
 using DataSakura.JitterPhysics.Contracts;
+using DataSakura.JitterPhysics.Editor.Install;
 using UnityEditor;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
@@ -160,11 +161,49 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
 
             if (jitter.DefinitionPaths.Count == 0)
             {
+                JitterPhysicsInstallReceipt receipt = JitterPhysicsInstallReceipt.Load(
+                    JitterPhysicsInstallReceipt.DefaultPath, out string receiptError);
+                JitterPhysicsInstalledComponent installed = receipt.Component(JitterPhysicsComponentIds.Jitter);
+
+                if (installed != null && string.IsNullOrEmpty(receiptError))
+                {
+                    string verificationError = VerifyInstalledPlugin(installed);
+                    if (verificationError == null)
+                    {
+                        bool installedMatches = string.Equals(
+                            installed.SourceHash, lockFile.SourceContentHash, StringComparison.Ordinal);
+                        string installedRuntimeId = ArtifactCodec.RuntimeCompatibilityId.Compute(
+                            RuntimeCompatibilityInputs.ForCurrentBuild(
+                                installed.SourceHash, lockFile.CompileProfileId));
+
+                        return new JitterPhysicsCompatibilityReport(
+                            installedMatches
+                                ? JitterPhysicsCompatibilityStatus.Compatible
+                                : JitterPhysicsCompatibilityStatus.Incompatible,
+                            installedMatches
+                                ? $"The package-owned precompiled '{jitter.Name}' matches its "
+                                  + "installation receipt and this package release."
+                                : $"The package-owned precompiled '{jitter.Name}' was installed "
+                                  + $"from {installed.SourceHash}, but this release expects "
+                                  + $"{lockFile.SourceContentHash}. Update the installation.",
+                            jitter.DefinitionPaths,
+                            lockFile.SourceContentHash,
+                            installed.SourceHash,
+                            lockFile.CompileProfileId,
+                            installedRuntimeId,
+                            installed.Files.Count,
+                            lockFile.IsPlaceholder);
+                    }
+
+                    receiptError = verificationError;
+                }
+
                 return new JitterPhysicsCompatibilityReport(
                     JitterPhysicsCompatibilityStatus.UnsupportedPlugin,
                     $"'{jitter.Name}' is compiled but has no assembly definition, so it is a "
                     + "precompiled plugin. Its sources cannot be hashed and compatibility "
-                    + "cannot be proven; supply Jitter2 as source instead.",
+                    + "cannot be proven; supply Jitter2 as source instead."
+                    + (string.IsNullOrEmpty(receiptError) ? string.Empty : " " + receiptError),
                     jitter.DefinitionPaths,
                     lockFile.SourceContentHash,
                     null,
@@ -215,6 +254,37 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
                 runtimeId,
                 inputs.Count,
                 lockFile.IsPlaceholder);
+        }
+
+        private static string VerifyInstalledPlugin(JitterPhysicsInstalledComponent component)
+        {
+            if (component.Ownership != JitterPhysicsOwnership.Package)
+            {
+                return "The receipt does not mark the precompiled plugin as package-owned.";
+            }
+
+            if (string.IsNullOrEmpty(component.SourceHash))
+            {
+                return "The installed plugin receipt has no canonical source hash.";
+            }
+
+            for (int i = 0; i < component.Files.Count; i++)
+            {
+                JitterPhysicsInstalledFile file = component.Files[i];
+                string path = Path.Combine(component.Root, file.RelativePath).Replace('\\', '/');
+                if (!File.Exists(path))
+                {
+                    return $"The package-owned plugin file '{path}' is missing.";
+                }
+
+                string actualHash = JitterPhysicsHash.Sha256Hex(File.ReadAllBytes(path));
+                if (!JitterPhysicsHash.HexEquals(actualHash, file.Hash))
+                {
+                    return $"The package-owned plugin file '{path}' changed after installation.";
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -320,5 +390,3 @@ namespace DataSakura.JitterPhysics.Editor.Bootstrap
         }
     }
 }
-
-
