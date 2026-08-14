@@ -57,6 +57,12 @@ namespace DataSakura.JitterPhysics.Editor.Install
         private const string IntegrationAsmdefName = "DataSakura.JitterPhysics.JitterIntegration.asmdef";
 
         /// <summary>
+        /// Shipped next to the Jitter2 plugin: it is not part of .NET Standard 2.1 and Unity does
+        /// not deliver it to players, so the assembly cannot load without it.
+        /// </summary>
+        private const string UnsafeAssemblyFileName = "System.Runtime.CompilerServices.Unsafe.dll";
+
+        /// <summary>
         /// Installs or updates the dormant Jitter2 snapshot. Refused when the project already has
         /// a Jitter2 the package does not own.
         /// </summary>
@@ -137,15 +143,15 @@ namespace DataSakura.JitterPhysics.Editor.Install
             // deliver it to players. A project that already has one keeps it: two copies of the
             // same assembly is a conflict Unity reports far from its cause.
             var skipped = new List<string>();
-            if (ProjectContainsFile("System.Runtime.CompilerServices.Unsafe.dll"))
+            if (ProjectContainsFile(UnsafeAssemblyFileName))
             {
-                skipped.Add("System.Runtime.CompilerServices.Unsafe.dll");
+                skipped.Add(UnsafeAssemblyFileName);
                 issues.Warning(
                     "The project already provides System.Runtime.CompilerServices.Unsafe, so the "
                     + "package copy was not installed.");
             }
 
-            return Install(
+            JitterPhysicsInstallResult result = Install(
                 JitterPhysicsComponentIds.Jitter,
                 sourceFolder,
                 targetFolder,
@@ -156,6 +162,21 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 issues,
                 "*.dll",
                 skipped);
+
+            // Checked after the fact rather than trusted. The editor resolves this assembly from
+            // its own toolchain, so a project missing it compiles and plays perfectly well and
+            // then fails when a player build is made - far from here, and long after anyone
+            // connects the two.
+            if (result.Succeeded && !ProjectContainsFile(UnsafeAssemblyFileName))
+            {
+                issues.Warning(
+                    $"'{UnsafeAssemblyFileName}' is not in the project, but the installed Jitter2 "
+                    + "assembly references it. The editor will still run, because it resolves that "
+                    + "assembly from its own toolchain, but a player build will fail to load "
+                    + "Jitter2. Re-run the install to place it.");
+            }
+
+            return result;
         }
 
         /// <summary>Reports whether an asset with the given file name already exists in the project.</summary>
@@ -734,6 +755,9 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
+
+
 
 
 
