@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using DataSakura.JitterPhysics.Contracts;
 using NUnit.Framework;
 using UnityEditor;
@@ -130,6 +131,37 @@ namespace DataSakura.JitterPhysics.Editor.Tests
                 Assert.That(AssetDatabase.IsValidFolder(assetPath), Is.False,
                     $"Unity imported '{assetPath}', which must stay dormant.");
             }
+        }
+
+        [Test]
+        public void AuthoringWindowKeepsTheSharedDataSakuraWorkflow()
+        {
+            FieldInfo tabsField = typeof(JitterPhysicsBakerWindow).GetField(
+                "TabNames",
+                BindingFlags.NonPublic | BindingFlags.Static);
+
+            Assert.That(tabsField, Is.Not.Null);
+            Assert.That(
+                (string[])tabsField.GetValue(null),
+                Is.EqualTo(new[]
+                {
+                    "Overview",
+                    "Sources",
+                    "Bake",
+                    "Tools",
+                    "Setup",
+                    "Artifacts",
+                }),
+                "The main workflow intentionally mirrors the other DataSakura authoring packages.");
+
+            Assert.That(
+                typeof(JitterPhysicsBakerWindow).GetMethod(nameof(JitterPhysicsBakerWindow.OpenSetupTab)),
+                Is.Not.Null,
+                "Setup menu actions must be able to route into the shared main window.");
+            Assert.That(
+                typeof(JitterPhysicsBakerWindow).GetMethod(nameof(JitterPhysicsBakerWindow.OpenArtifactsTab)),
+                Is.Not.Null,
+                "Artifact commands must be able to route into the shared main window.");
         }
 
         private static PackageInfo FindPackage()

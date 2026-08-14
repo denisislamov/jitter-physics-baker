@@ -16,7 +16,8 @@ identical in two code bases by hand.
 path: adding the package, providing Jitter2, marking up a level, baking it, loading it in
 Unity, and running the same bytes on a dedicated server.
 
-Three runnable samples are installed from the Setup window; see `Samples~/README.md`.
+Three runnable samples are installed from the detailed installation view opened from the
+**Setup** tab; see `Samples~/README.md`.
 
 ## Status
 
@@ -80,16 +81,18 @@ it. See `Server~/README.md`.
 
 ## Editor entry points
 
-- `Tools > DataSakura > Jitter Physics > Physics Baker` — the working surface. **Level &
-  Bake**: pick the level, read the validation issues and select the object that caused each
-  one, validate or bake. **Artifacts**: inspect what was baked, verify it re-hashes and
-  decodes, export the exact payload and manifest or a generated embedded provider, delete one
-  named artifact. **Diagnostics**: repeat-bake determinism, codec round-trip and runtime
-  compatibility, answered without starting a match.
-- `Tools > DataSakura > Jitter Physics > Setup` — which `Jitter2.Core` this project uses,
-  whether its canonical source hash matches `jitter2.lock.json`, the resulting
-  `runtimeCompatibilityId`, and why baking is blocked when it is. Read-only; the report can
-  be copied or exported as JSON for CI.
+- `Tools > DataSakura > Jitter Physics > Physics Baker` — the single authoring surface. Its
+  workflow matches the other DataSakura authoring packages: **Overview** explains the level
+  and shows the cached readiness result, **Sources** owns explicit static-body markup,
+  **Bake** owns the shared world profile and deterministic build, **Tools** contains manual
+  diagnostics, **Setup** explains Jitter2 compatibility and opens explicit installation
+  actions, and **Artifacts** verifies or exports the exact bytes. Opening or repainting any
+  tab performs no project mutation.
+- `Tools > DataSakura > Jitter Physics > Setup` — opens the **Setup** tab of the main window.
+  The compatibility summary shows which `Jitter2.Core` this project uses, whether its
+  canonical source hash matches `jitter2.lock.json`, the resulting `runtimeCompatibilityId`,
+  and why baking is blocked. The detailed view can copy or export the report as JSON for CI
+  and contains the explicit installation actions.
 - `Tools > DataSakura > Jitter Physics > About` — package, schema and assembly state,
   including whether a `Jitter2.Core` is present and whether it is duplicated.
 - `Tools > DataSakura > Jitter Physics > Validate Selected Level` — runs the whole build

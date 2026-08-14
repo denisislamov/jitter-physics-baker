@@ -24,7 +24,7 @@ namespace DataSakura.JitterPhysics.Editor
         private Vector2 scroll;
 
         [MenuItem(MenuPath, false, 200)]
-        private static void Open()
+        internal static void OpenWindow()
         {
             var window = GetWindow<JitterPhysicsAboutWindow>(true, "Jitter Physics — About", true);
             window.minSize = new Vector2(460f, 320f);

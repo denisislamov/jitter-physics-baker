@@ -27,7 +27,13 @@ namespace DataSakura.JitterPhysics.Editor
         private bool snapshotSupportsUnity;
 
         [MenuItem(MenuPath, false, 100)]
-        private static void Open()
+        private static void OpenFromMenu()
+        {
+            JitterPhysicsBakerWindow.OpenSetupTab();
+        }
+
+        /// <summary>Opens the detailed installation and compatibility report.</summary>
+        internal static void OpenWindow()
         {
             var window = GetWindow<JitterPhysicsSetupWindow>(false, "Jitter Physics — Setup", true);
             window.minSize = new Vector2(520f, 360f);
@@ -309,7 +315,6 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
-
 
 
 

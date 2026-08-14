@@ -6,6 +6,13 @@ All notable changes to this package are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **The authoring window now follows the shared DataSakura package workflow.** A persistent
+  header and manual readiness bar lead into `Overview`, `Sources`, `Bake`, `Tools`, `Setup`
+  and `Artifacts`. The window provides an explicit one-click level/profile setup, source
+  editing in context, a focused bake surface and a compatibility gateway while preserving
+  the rule that opening, repainting or changing selection never writes project data.
+
 ### Fixed
 - **A plain sphere or box no longer fails to bake.** The collider converter used
   `default(Quaternion)` as its "no axis correction" sentinel, but that value is `(0,0,0,0)`

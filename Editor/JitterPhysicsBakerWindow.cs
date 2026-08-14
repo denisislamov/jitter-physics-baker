@@ -10,7 +10,9 @@ using DataSakura.JitterPhysics.Editor.Bootstrap;
 using DataSakura.JitterPhysics.Editor.Export;
 using DataSakura.JitterPhysics.UnityArtifact;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 
 namespace DataSakura.JitterPhysics.Editor
@@ -36,18 +38,35 @@ namespace DataSakura.JitterPhysics.Editor
 
         private enum Tab
         {
-            Level = 0,
+            Overview = 0,
+            Sources,
+            Bake,
+            Tools,
+            Setup,
             Artifacts,
-            Diagnostics,
         }
 
-        private static readonly string[] TabNames = { "Level && Bake", "Artifacts", "Diagnostics" };
+        private static readonly string[] TabNames =
+        {
+            "Overview",
+            "Sources",
+            "Bake",
+            "Tools",
+            "Setup",
+            "Artifacts",
+        };
 
+        [SerializeField]
         private Tab tab;
+        [SerializeField]
         private Vector2 scroll;
 
+        [SerializeField]
         private JitterPhysicsLevel level;
         private JitterPhysicsIssueLog issues;
+        private JitterPhysicsIssueLog validationIssues;
+        private DateTime validationTime;
+        private bool validationStale;
         private string bakeSummary;
         private bool lastActionFailed;
 
@@ -57,93 +76,315 @@ namespace DataSakura.JitterPhysics.Editor
 
         private string diagnosticsReport;
 
+        /// <summary>Opens the package's main authoring window.</summary>
         [MenuItem(MenuPath, false, 1)]
-        private static void Open()
+        public static void Open()
         {
-            var window = GetWindow<JitterPhysicsBakerWindow>(false, "Jitter Physics — Baker", true);
-            window.minSize = new Vector2(560f, 420f);
-            window.FindLevel();
+            var window = GetWindow<JitterPhysicsBakerWindow>();
+            window.titleContent = new GUIContent("Jitter Physics");
+            window.minSize = new Vector2(560f, 440f);
+            window.TrySelectLevelFromContext();
             window.RefreshArtifacts();
             window.Show();
         }
 
+        /// <summary>Opens the main authoring window on the setup tab.</summary>
+        public static void OpenSetupTab()
+        {
+            Open();
+            GetWindow<JitterPhysicsBakerWindow>().tab = Tab.Setup;
+        }
+
+        /// <summary>Opens the main authoring window on the artifacts tab.</summary>
+        public static void OpenArtifactsTab()
+        {
+            Open();
+            GetWindow<JitterPhysicsBakerWindow>().tab = Tab.Artifacts;
+        }
+
+        private void OnEnable()
+        {
+            Selection.selectionChanged += OnSelectionChanged;
+            TrySelectLevelFromContext();
+        }
+
+        private void OnDisable()
+        {
+            Selection.selectionChanged -= OnSelectionChanged;
+        }
+
         private void OnGUI()
         {
-            tab = (Tab)GUILayout.Toolbar((int)tab, TabNames);
-            EditorGUILayout.Space();
+            DrawHeader();
+            DrawStatusBar();
+
+            DrawTabSelector();
+            EditorGUILayout.Space(6f);
+
+            bool levelRequired = tab == Tab.Overview
+                                 || tab == Tab.Sources
+                                 || tab == Tab.Bake
+                                 || tab == Tab.Tools;
+            if (levelRequired)
+            {
+                DrawLevelSelector();
+                if (level == null)
+                {
+                    DrawEmptyState();
+                    return;
+                }
+            }
 
             using var scope = new EditorGUILayout.ScrollViewScope(scroll);
             scroll = scope.scrollPosition;
 
             switch (tab)
             {
-                case Tab.Level:
-                    DrawLevelTab();
+                case Tab.Sources:
+                    DrawSourcesTab();
+                    break;
+
+                case Tab.Bake:
+                    DrawBakeTab();
+                    break;
+
+                case Tab.Tools:
+                    DrawDiagnosticsTab();
+                    break;
+
+                case Tab.Setup:
+                    DrawSetupTab();
                     break;
 
                 case Tab.Artifacts:
                     DrawArtifactsTab();
                     break;
 
-                case Tab.Diagnostics:
-                    DrawDiagnosticsTab();
+                default:
+                    DrawOverviewTab();
                     break;
             }
         }
 
-        // ---------------------------------------------------------------- Level & Bake
-
-        private void DrawLevelTab()
+        private static void DrawHeader()
         {
-            EditorGUILayout.LabelField("Level", EditorStyles.boldLabel);
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField("Jitter Physics Authoring", EditorStyles.largeLabel);
+            EditorGUILayout.LabelField(
+                "Deterministic static-geometry baking for the Unity client and .NET server.",
+                EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.Space(4f);
+        }
 
-            using (new EditorGUILayout.HorizontalScope())
+        private void DrawTabSelector()
+        {
+            if (EditorGUIUtility.currentViewWidth < 520f)
             {
-                level = (JitterPhysicsLevel)EditorGUILayout.ObjectField(
-                    "Level", level, typeof(JitterPhysicsLevel), true);
-
-                if (GUILayout.Button("Find in scene", GUILayout.Width(110f)))
-                {
-                    FindLevel();
-                }
-            }
-
-            if (level == null)
-            {
-                EditorGUILayout.HelpBox(
-                    "No JitterPhysicsLevel selected. Add one to the scene that owns the static "
-                    + "geometry, or drag it in here.",
-                    MessageType.Info);
+                tab = (Tab)EditorGUILayout.Popup("Section", (int)tab, TabNames);
                 return;
             }
 
-            DrawLevelSummary();
-            EditorGUILayout.Space();
-            DrawBakeButtons();
-            EditorGUILayout.Space();
-            DrawIssues();
+            tab = (Tab)GUILayout.Toolbar((int)tab, TabNames);
+        }
 
-            if (!string.IsNullOrEmpty(bakeSummary))
+        /// <summary>
+        /// Draws only the cached result of an explicit validation. Merely opening or repainting
+        /// the window never scans geometry or changes the project.
+        /// </summary>
+        private void DrawStatusBar()
+        {
+            bool compact = EditorGUIUtility.currentViewWidth < 360f;
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.Space();
-                EditorGUILayout.LabelField("Result", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(bakeSummary, lastActionFailed ? MessageType.Error : MessageType.Info);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    var style = new GUIStyle(EditorStyles.boldLabel) { wordWrap = true };
+                    EditorGUILayout.LabelField(DescribeValidationStatus(), style);
+                    if (!compact)
+                    {
+                        GUILayout.FlexibleSpace();
+                        DrawStatusValidateButton(GUILayout.Width(80f), GUILayout.Height(22f));
+                    }
+                }
+
+                if (compact)
+                {
+                    DrawStatusValidateButton(GUILayout.Height(22f));
+                }
             }
+        }
+
+        private void DrawStatusValidateButton(params GUILayoutOption[] options)
+        {
+            using (new EditorGUI.DisabledScope(level == null))
+            {
+                if (GUILayout.Button(
+                        new GUIContent(
+                            "Validate",
+                            "A one-shot level check. Nothing runs in the background."),
+                        options))
+                {
+                    Validate();
+                }
+            }
+        }
+
+        private GUIContent DescribeValidationStatus()
+        {
+            if (level == null)
+            {
+                return new GUIContent("[ ]  No level selected");
+            }
+
+            if (validationIssues == null)
+            {
+                return new GUIContent(
+                    "[ ]  Not validated - press Validate",
+                    "Validation runs manually and automatically before a bake.");
+            }
+
+            string checkedAt = validationTime == default ? string.Empty :
+                "   ·   checked at " + validationTime.ToString("HH:mm:ss");
+            string stale = validationStale ? "   (data changed)" : string.Empty;
+            if (validationIssues.HasErrors)
+            {
+                return new GUIContent(
+                    $"[X]  {validationIssues.ErrorCount} errors - bake blocked{checkedAt}{stale}");
+            }
+
+            if (validationIssues.WarningCount > 0)
+            {
+                return new GUIContent(
+                    $"[!]  {validationIssues.WarningCount} warnings{checkedAt}{stale}");
+            }
+
+            return new GUIContent($"[v]  Ready to bake{checkedAt}{stale}");
+        }
+
+        private void DrawLevelSelector()
+        {
+            EditorGUI.BeginChangeCheck();
+            JitterPhysicsLevel next = (JitterPhysicsLevel)EditorGUILayout.ObjectField(
+                new GUIContent(
+                    "Jitter Physics Level",
+                    "The JitterPhysicsLevel in the scene edited by this window."),
+                level,
+                typeof(JitterPhysicsLevel),
+                true);
+            if (EditorGUI.EndChangeCheck())
+            {
+                level = next;
+                ClearValidation();
+            }
+
+            EditorGUILayout.Space(4f);
+        }
+
+        private void DrawEmptyState()
+        {
+            EditorGUILayout.HelpBox(
+                "This scene has no selected Jitter Physics Level. Create one to define explicit "
+                + "static-body sources, shared world settings and the artifact output.",
+                MessageType.Info);
+
+            if (GUILayout.Button("Create Jitter Physics Level Setup", GUILayout.Height(34f)))
+            {
+                CreateLevelSetup();
+            }
+
+            JitterPhysicsLevel[] sceneLevels = FindSceneLevels();
+            if (sceneLevels.Length == 0)
+            {
+                return;
+            }
+
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField("Existing levels", EditorStyles.boldLabel);
+            for (int i = 0; i < sceneLevels.Length; i++)
+            {
+                if (GUILayout.Button(sceneLevels[i].name, EditorStyles.miniButton))
+                {
+                    level = sceneLevels[i];
+                    Selection.activeObject = level.gameObject;
+                    ClearValidation();
+                }
+            }
+        }
+
+        // --------------------------------------------------------------- Overview
+
+        private void DrawOverviewTab()
+        {
+            EditorGUILayout.LabelField("Level summary", EditorStyles.boldLabel);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawLevelSummary();
+            }
+
+            EditorGUILayout.Space(8f);
+            DrawLevelSettings();
+
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField("Validation", EditorStyles.boldLabel);
+            if (validationIssues == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "The level has not been validated in this session. Validation does not run "
+                    + "on selection or scene changes - press Validate, or just Bake (it validates first).",
+                    MessageType.None);
+            }
+            else if (validationIssues.Issues.Count == 0)
+            {
+                EditorGUILayout.HelpBox("The authoring setup is valid for baking.", MessageType.Info);
+            }
+            else
+            {
+                DrawIssues(validationIssues);
+            }
+
+            EditorGUILayout.Space(8f);
+            DrawBuildStatus();
         }
 
         private void DrawLevelSummary()
         {
             IReadOnlyList<JitterStaticBodySource> sources = level.CollectSources();
 
-            EditorGUILayout.LabelField("Level id", level.LevelId);
-            EditorGUILayout.LabelField(
+            DrawSummaryRow("Level ID", level.LevelId);
+            DrawSummaryRow(
                 "Geometry root",
                 level.GeometryRoot != null ? level.GeometryRoot.name : "<the level object>");
-            EditorGUILayout.LabelField(
+            DrawSummaryRow(
                 "World profile",
                 level.WorldProfile != null ? level.WorldProfile.name : "<none — bake will refuse>");
-            EditorGUILayout.LabelField("Marked sources", sources.Count.ToString());
-            EditorGUILayout.LabelField("Output folder", level.GeneratedFolder);
+            DrawSummaryRow("Static body sources", sources.Count.ToString());
+            DrawSummaryRow("Output folder", level.GeneratedFolder);
+            DrawSummaryRow(
+                "Last artifact",
+                string.IsNullOrEmpty(level.LastArtifactHash) ? "Not baked" : Short(level.LastArtifactHash));
+        }
+
+        private void DrawLevelSettings()
+        {
+            EditorGUILayout.LabelField("Level setup", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Only explicitly marked static-body sources become part of the artifact. The "
+                + "same world profile and exact artifact bytes are consumed by Unity and .NET.",
+                MessageType.Info);
+
+            var serialized = new SerializedObject(level);
+            serialized.Update();
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(serialized.FindProperty("levelId"));
+            EditorGUILayout.PropertyField(serialized.FindProperty("geometryRoot"));
+            EditorGUILayout.PropertyField(serialized.FindProperty("worldProfile"));
+            EditorGUILayout.PropertyField(serialized.FindProperty("generatedFolder"));
+            if (EditorGUI.EndChangeCheck())
+            {
+                serialized.ApplyModifiedProperties();
+                MarkSceneChanged();
+                MarkValidationStale();
+            }
 
             if (!level.HasCanonicalLevelId)
             {
@@ -153,13 +394,211 @@ namespace DataSakura.JitterPhysics.Editor
                     MessageType.Warning);
             }
 
+            if (level.WorldProfile == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "No world profile is assigned. Create one with Assets/Create/Jitter Physics/World "
+                    + "Profile, then assign it here. Baking stays blocked until the shared settings exist.",
+                    MessageType.Warning);
+            }
+        }
+
+        // ---------------------------------------------------------------- Sources
+
+        private void DrawSourcesTab()
+        {
+            IReadOnlyList<JitterStaticBodySource> sources = level.CollectSources();
+            EditorGUILayout.LabelField("Explicit static-body sources", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "A source groups one or more Unity colliders into one deterministic static body. "
+                + "Unmarked colliders are ignored, so adding scenery cannot silently change physics.",
+                MessageType.Info);
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawSummaryRow("Marked sources", sources.Count.ToString());
+                DrawSummaryRow(
+                    "Geometry root",
+                    level.GeometryRoot != null ? level.GeometryRoot.name : "Entire scene");
+            }
+
+            GameObject selected = Selection.activeGameObject;
+            bool canAdd = selected != null
+                          && selected.scene.IsValid()
+                          && IsInsideLevelScope(selected)
+                          && selected.GetComponent<JitterStaticBodySource>() == null;
+            using (new EditorGUI.DisabledScope(!canAdd))
+            {
+                string label = selected == null
+                    ? "Select a GameObject to add a source"
+                    : "Add Source to " + selected.name;
+                if (GUILayout.Button(label, GUILayout.Height(30f)))
+                {
+                    AddSource(selected);
+                }
+            }
+
+            if (selected != null && selected.scene.IsValid() && !IsInsideLevelScope(selected))
+            {
+                EditorGUILayout.HelpBox(
+                    "The selected object is outside this level's geometry root and would not be "
+                    + "collected. Select an object inside the geometry root or change it on Overview.",
+                    MessageType.Warning);
+            }
+
             if (sources.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "Nothing is marked for baking. Static geometry is collected only from objects "
-                    + "carrying JitterStaticBodySource, never from every collider in the scene: "
-                    + "otherwise adding scenery would silently change the level.",
+                    "No static bodies are marked yet. Select a collider root in the Hierarchy and "
+                    + "add a source, or add JitterStaticBodySource from the Inspector.",
                     MessageType.Warning);
+                return;
+            }
+
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField($"Sources ({sources.Count})", EditorStyles.boldLabel);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                DrawSource(sources[i]);
+            }
+        }
+
+        private void DrawSource(JitterStaticBodySource source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.ObjectField(source, typeof(JitterStaticBodySource), true);
+                    if (GUILayout.Button("Select", EditorStyles.miniButton, GUILayout.Width(54f)))
+                    {
+                        Selection.activeObject = source.gameObject;
+                        EditorGUIUtility.PingObject(source.gameObject);
+                    }
+
+                    if (GUILayout.Button("Remove", EditorStyles.miniButton, GUILayout.Width(60f)))
+                    {
+                        Undo.DestroyObjectImmediate(source);
+                        MarkSceneChanged();
+                        MarkValidationStale();
+                        GUIUtility.ExitGUI();
+                    }
+                }
+
+                var serialized = new SerializedObject(source);
+                serialized.Update();
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.PropertyField(serialized.FindProperty("sourceId"));
+                EditorGUILayout.PropertyField(serialized.FindProperty("includeChildren"));
+                EditorGUILayout.PropertyField(serialized.FindProperty("friction"));
+                EditorGUILayout.PropertyField(serialized.FindProperty("restitution"));
+                if (EditorGUI.EndChangeCheck())
+                {
+                    serialized.ApplyModifiedProperties();
+                    MarkSceneChanged();
+                    MarkValidationStale();
+                }
+            }
+        }
+
+        private void AddSource(GameObject target)
+        {
+            JitterStaticBodySource source = Undo.AddComponent<JitterStaticBodySource>(target);
+            EditorUtility.SetDirty(source);
+            MarkSceneChanged();
+            MarkValidationStale();
+            Selection.activeObject = target;
+        }
+
+        private bool IsInsideLevelScope(GameObject target)
+        {
+            if (target == null || level == null || target.scene != level.gameObject.scene)
+            {
+                return false;
+            }
+
+            return level.GeometryRoot == null || target.transform.IsChildOf(level.GeometryRoot);
+        }
+
+        // ------------------------------------------------------------------ Bake
+
+        private void DrawBakeTab()
+        {
+            EditorGUILayout.LabelField("World shared by client and server", EditorStyles.boldLabel);
+            if (level.WorldProfile == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "Assign a Jitter Physics World Profile on the Overview tab before baking.",
+                    MessageType.Warning);
+            }
+            else
+            {
+                EditorGUI.BeginChangeCheck();
+                UnityEditor.Editor profileEditor = UnityEditor.Editor.CreateEditor(level.WorldProfile);
+                if (profileEditor != null)
+                {
+                    profileEditor.OnInspectorGUI();
+                    DestroyImmediate(profileEditor);
+                }
+
+                if (EditorGUI.EndChangeCheck())
+                {
+                    MarkValidationStale();
+                }
+            }
+
+            EditorGUILayout.Space(10f);
+            EditorGUILayout.LabelField("Bake pipeline", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Bake validates first, writes one deterministic artifact, and leaves the previous "
+                + "artifact untouched if anything fails.",
+                MessageType.None);
+            DrawBakeButtons();
+            EditorGUILayout.Space(8f);
+            DrawIssues(issues);
+
+            if (!string.IsNullOrEmpty(bakeSummary))
+            {
+                EditorGUILayout.Space(8f);
+                EditorGUILayout.LabelField("Result", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(bakeSummary, lastActionFailed ? MessageType.Error : MessageType.Info);
+            }
+
+            EditorGUILayout.Space(8f);
+            DrawBuildStatus();
+        }
+
+        private void DrawBuildStatus()
+        {
+            EditorGUILayout.LabelField("Build status", EditorStyles.boldLabel);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawSummaryRow(
+                    "Last artifact",
+                    string.IsNullOrEmpty(level.LastArtifactHash) ? "Not baked" : Short(level.LastArtifactHash));
+                DrawSummaryRow("Output folder", level.GeneratedFolder);
+                DrawSummaryRow("Artifacts in project", artifacts.Length.ToString());
+            }
+
+            if (string.IsNullOrEmpty(level.LastArtifactHash))
+            {
+                EditorGUILayout.HelpBox(
+                    "This level has not produced an artifact yet. Open the Bake tab when the setup is ready.",
+                    MessageType.None);
+            }
+        }
+
+        private static void DrawSummaryRow(string label, string value)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(label, GUILayout.Width(150f));
+                EditorGUILayout.LabelField(value, EditorStyles.boldLabel);
             }
         }
 
@@ -208,6 +647,9 @@ namespace DataSakura.JitterPhysics.Editor
             stopwatch.Stop();
 
             issues = result.Issues;
+            validationIssues = result.Issues;
+            validationTime = DateTime.Now;
+            validationStale = false;
             lastActionFailed = result.Issues.HasErrors;
             bakeSummary = result.Issues.HasErrors
                 ? $"Validation found {result.Issues.ErrorCount} error(s). Nothing was written."
@@ -222,6 +664,9 @@ namespace DataSakura.JitterPhysics.Editor
             stopwatch.Stop();
 
             issues = result.Issues;
+            validationIssues = result.Issues;
+            validationTime = DateTime.Now;
+            validationStale = false;
             lastActionFailed = !result.Succeeded;
 
             if (!result.Succeeded)
@@ -242,20 +687,20 @@ namespace DataSakura.JitterPhysics.Editor
             RefreshArtifacts();
         }
 
-        private void DrawIssues()
+        private static void DrawIssues(JitterPhysicsIssueLog issueLog)
         {
-            if (issues == null || issues.Issues.Count == 0)
+            if (issueLog == null || issueLog.Issues.Count == 0)
             {
                 return;
             }
 
             EditorGUILayout.LabelField(
-                $"Issues ({issues.ErrorCount} errors, {issues.WarningCount} warnings)",
+                $"Issues ({issueLog.ErrorCount} errors, {issueLog.WarningCount} warnings)",
                 EditorStyles.boldLabel);
 
-            for (int i = 0; i < issues.Issues.Count; i++)
+            for (int i = 0; i < issueLog.Issues.Count; i++)
             {
-                JitterPhysicsIssue issue = issues.Issues[i];
+                JitterPhysicsIssue issue = issueLog.Issues[i];
 
                 using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
                 {
@@ -274,6 +719,90 @@ namespace DataSakura.JitterPhysics.Editor
                         }
                     }
                 }
+            }
+        }
+
+        // ------------------------------------------------------------------- Setup
+
+        private void DrawSetupTab()
+        {
+            JitterPhysicsCompatibilityReport report = JitterPhysicsCompatibilityReport.Create();
+
+            EditorGUILayout.LabelField("Jitter2 compatibility", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(report.Message, MessageTypeFor(report.Status));
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawSummaryRow("Status", report.Status.ToString());
+                DrawSummaryRow("Baking allowed", report.CanBake ? "Yes" : "No");
+                DrawSummaryRow("Hashed files", report.HashedFileCount.ToString());
+                DrawSummaryRow(
+                    "Runtime ID",
+                    string.IsNullOrEmpty(report.RuntimeCompatibilityId)
+                        ? "Not available"
+                        : Short(report.RuntimeCompatibilityId));
+            }
+
+            EditorGUILayout.HelpBox(
+                "Installation is always explicit. The package never copies, moves or edits an "
+                + "external Jitter2 merely because this window was opened.",
+                MessageType.None);
+
+            if (EditorGUIUtility.currentViewWidth < 420f)
+            {
+                if (GUILayout.Button("Open installation details", GUILayout.Height(30f)))
+                {
+                    JitterPhysicsSetupWindow.OpenWindow();
+                }
+
+                if (GUILayout.Button("Copy compatibility JSON", GUILayout.Height(30f)))
+                {
+                    EditorGUIUtility.systemCopyBuffer = report.ToJson();
+                }
+            }
+            else
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Open installation details", GUILayout.Height(30f)))
+                    {
+                        JitterPhysicsSetupWindow.OpenWindow();
+                    }
+
+                    if (GUILayout.Button("Copy compatibility JSON", GUILayout.Height(30f)))
+                    {
+                        EditorGUIUtility.systemCopyBuffer = report.ToJson();
+                    }
+                }
+            }
+
+            EditorGUILayout.Space(10f);
+            EditorGUILayout.LabelField("Package", EditorStyles.boldLabel);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                DrawSummaryRow("Package", JitterPhysicsPackage.PackageName);
+                DrawSummaryRow("Version", JitterPhysicsPackage.PackageVersion);
+                DrawSummaryRow("Artifact schema", JitterPhysicsPackage.ArtifactSchemaVersion.ToString());
+            }
+
+            if (GUILayout.Button("About package", EditorStyles.miniButton))
+            {
+                JitterPhysicsAboutWindow.OpenWindow();
+            }
+        }
+
+        private static MessageType MessageTypeFor(JitterPhysicsCompatibilityStatus status)
+        {
+            switch (status)
+            {
+                case JitterPhysicsCompatibilityStatus.Compatible:
+                case JitterPhysicsCompatibilityStatus.Missing:
+                    return MessageType.Info;
+                case JitterPhysicsCompatibilityStatus.Incompatible:
+                case JitterPhysicsCompatibilityStatus.Duplicate:
+                case JitterPhysicsCompatibilityStatus.UnsupportedPlugin:
+                    return MessageType.Error;
+                default:
+                    return MessageType.Warning;
             }
         }
 
@@ -416,7 +945,7 @@ namespace DataSakura.JitterPhysics.Editor
                 }
             }
 
-            tab = Tab.Level;
+            tab = Tab.Bake;
         }
 
         private void VerifyArtifact(JitterPhysicsArtifactAsset asset)
@@ -429,7 +958,7 @@ namespace DataSakura.JitterPhysics.Editor
                     + $"{result.Artifact.ShapeCount} shapes."
                 : "Artifact is not loadable: " + result.Error;
 
-            tab = Tab.Level;
+            tab = Tab.Bake;
         }
 
         private void DeleteArtifact(JitterPhysicsArtifactAsset asset)
@@ -637,9 +1166,126 @@ namespace DataSakura.JitterPhysics.Editor
 
         // ---------------------------------------------------------------------- Helpers
 
-        private void FindLevel()
+        private void CreateLevelSetup()
         {
-            level = FindFirstObjectByType<JitterPhysicsLevel>(FindObjectsInactive.Include);
+            const string settingsFolder = "Assets/JitterPhysics/Generated/Settings";
+            EnsureAssetFolder(settingsFolder);
+
+            Scene scene = SceneManager.GetActiveScene();
+            string sceneName = string.IsNullOrWhiteSpace(scene.name) ? "UnsavedScene" : scene.name;
+            string sceneKey = JitterPhysicsIdUtility.Sanitize(sceneName, "level");
+
+            var root = new GameObject("Jitter Physics Level");
+            Undo.RegisterCreatedObjectUndo(root, "Create Jitter Physics Level Setup");
+            JitterPhysicsLevel createdLevel = Undo.AddComponent<JitterPhysicsLevel>(root);
+            createdLevel.EnsureLevelId();
+
+            string profilePath = AssetDatabase.GenerateUniqueAssetPath(
+                $"{settingsFolder}/{sceneKey}_WorldProfile.asset");
+            var profile = CreateInstance<JitterPhysicsWorldProfile>();
+            profile.name = Path.GetFileNameWithoutExtension(profilePath);
+            AssetDatabase.CreateAsset(profile, profilePath);
+
+            var serialized = new SerializedObject(createdLevel);
+            serialized.Update();
+            serialized.FindProperty("worldProfile").objectReferenceValue = profile;
+            serialized.ApplyModifiedProperties();
+
+            EditorUtility.SetDirty(createdLevel);
+            AssetDatabase.SaveAssets();
+            level = createdLevel;
+            Selection.activeGameObject = root;
+            MarkSceneChanged();
+            ClearValidation();
+        }
+
+        private static void EnsureAssetFolder(string folderPath)
+        {
+            string[] parts = folderPath.Split('/');
+            string current = parts[0];
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string next = current + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next))
+                {
+                    AssetDatabase.CreateFolder(current, parts[i]);
+                }
+
+                current = next;
+            }
+        }
+
+        private void TrySelectLevelFromContext()
+        {
+            if (Selection.activeGameObject != null)
+            {
+                JitterPhysicsLevel selected =
+                    Selection.activeGameObject.GetComponentInParent<JitterPhysicsLevel>();
+                if (selected != null)
+                {
+                    level = selected;
+                    return;
+                }
+            }
+
+            JitterPhysicsLevel[] levels = FindSceneLevels();
+            if (level == null && levels.Length == 1)
+            {
+                level = levels[0];
+            }
+        }
+
+        private static JitterPhysicsLevel[] FindSceneLevels()
+        {
+            JitterPhysicsLevel[] all = Resources.FindObjectsOfTypeAll<JitterPhysicsLevel>();
+            var result = new List<JitterPhysicsLevel>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                JitterPhysicsLevel candidate = all[i];
+                if (candidate != null
+                    && !EditorUtility.IsPersistent(candidate)
+                    && candidate.gameObject.scene.IsValid()
+                    && candidate.gameObject.scene.isLoaded)
+                {
+                    result.Add(candidate);
+                }
+            }
+
+            return result.ToArray();
+        }
+
+        private void OnSelectionChanged()
+        {
+            JitterPhysicsLevel previous = level;
+            TrySelectLevelFromContext();
+            if (previous != level)
+            {
+                ClearValidation();
+            }
+
+            Repaint();
+        }
+
+        private void ClearValidation()
+        {
+            validationIssues = null;
+            issues = null;
+            validationTime = default;
+            validationStale = false;
+            bakeSummary = string.Empty;
+        }
+
+        private void MarkValidationStale()
+        {
+            validationStale = validationIssues != null;
+        }
+
+        private void MarkSceneChanged()
+        {
+            if (level != null && level.gameObject.scene.IsValid())
+            {
+                EditorSceneManager.MarkSceneDirty(level.gameObject.scene);
+            }
         }
 
         private void RefreshArtifacts()
@@ -690,4 +1336,3 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
-

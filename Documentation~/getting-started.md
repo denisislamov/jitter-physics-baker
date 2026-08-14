@@ -33,8 +33,9 @@ deciding which Jitter2 the project will use.
 
 ## 2. Provide Jitter2
 
-Open **Tools > DataSakura > Jitter Physics > Setup**. The report at the top tells you what
-the project currently has.
+Open **Tools > DataSakura > Jitter Physics > Setup**. This routes to the **Setup** tab of the
+main authoring window. Its summary tells you what the project currently has; use **Open
+installation details** for the explicit install/update actions.
 
 | Status | What it means | What to do |
 | --- | --- | --- |
@@ -69,7 +70,8 @@ snapshot compile, and why they cannot change simulation behaviour.
 
 ## 3. Install the integration adapter
 
-Press **Install/update integration**. This is the Jitter-dependent half: the code that turns
+In the detailed installation view, press **Install/update integration**. This is the
+Jitter-dependent half: the code that turns
 artifact records into Jitter2 shapes and bodies. It is separate from the package core so that
 step 1 can work without Jitter2.
 
@@ -226,8 +228,8 @@ Rules that are not style preferences:
 
 ## 7. Install the samples
 
-**Setup > Install/update samples**, then **Tools > DataSakura > Jitter Physics > Samples >
-Build and bake: Bouncing Ball**.
+From **Setup > Open installation details**, press **Install/update samples**, then use
+**Tools > DataSakura > Jitter Physics > Samples > Build and bake: Bouncing Ball**.
 
 | Sample | Shows |
 | --- | --- |
@@ -243,7 +245,8 @@ adapter yields a missing-assembly error that names nothing useful.
 
 The server never opens Unity, so it needs the sources and the bytes.
 
-**Sources.** Setup > **Install server runtime sources...** projects `Contracts`,
+**Sources.** In **Setup > Open installation details**, **Install server runtime sources...**
+projects `Contracts`,
 `ArtifactCodec` and the adapter into a folder inside your server project. They compile with a
 plain .NET SDK against your Jitter2 assembly. No `PackageCache` paths, no build-file edits:
 the projection is ordinary source files in a folder an SDK-style project already globs.
@@ -296,7 +299,7 @@ server built against different Jitter sources must not be able to claim compatib
 
 ## 10. Diagnose problems
 
-Baker window, **Diagnostics** tab:
+Baker window, **Tools** tab:
 
 | Check | Catches |
 | --- | --- |
