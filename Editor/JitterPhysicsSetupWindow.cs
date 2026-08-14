@@ -190,6 +190,17 @@ namespace DataSakura.JitterPhysics.Editor
                         Run(Install.JitterPhysicsInstaller.InstallIntegration());
                     }
                 }
+
+                // Last, and after the integration button, because that is the order the samples
+                // depend on: they reference the adapter by name and cannot compile without it.
+                using (new EditorGUI.DisabledScope(
+                    report.Status == JitterPhysicsCompatibilityStatus.Missing))
+                {
+                    if (GUILayout.Button("Install/update samples"))
+                    {
+                        Run(Install.JitterPhysicsInstaller.InstallSamples());
+                    }
+                }
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -298,6 +309,7 @@ namespace DataSakura.JitterPhysics.Editor
         }
     }
 }
+
 
 
 

@@ -1,0 +1,20 @@
+{
+  "name": "DataSakura.JitterPhysics.Samples",
+  "rootNamespace": "DataSakura.JitterPhysics.Samples",
+  "references": [
+    "DataSakura.JitterPhysics.Contracts",
+    "DataSakura.JitterPhysics.ArtifactCodec",
+    "DataSakura.JitterPhysics.UnityArtifact",
+    "DataSakura.JitterPhysics.JitterIntegration"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+

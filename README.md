@@ -10,6 +10,14 @@ server keeps stepping its authoritative world and the client keeps predicting, e
 before. What the package removes is hand-written static geometry that has to be kept
 identical in two code bases by hand.
 
+## Getting started
+
+**[Documentation~/getting-started.md](Documentation~/getting-started.md)** walks the whole
+path: adding the package, providing Jitter2, marking up a level, baking it, loading it in
+Unity, and running the same bytes on a dedicated server.
+
+Three runnable samples are installed from the Setup window; see `Samples~/README.md`.
+
 ## Status
 
 Early development (`0.0.1`). The assembly graph, the artifact contracts and the editor

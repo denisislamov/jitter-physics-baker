@@ -29,6 +29,9 @@ namespace DataSakura.JitterPhysics.Editor.Install
 
         /// <summary>The server runtime source projection.</summary>
         public const string ServerRuntime = "server-runtime";
+
+        /// <summary>The runnable samples.</summary>
+        public const string Samples = "samples";
     }
 
     /// <summary>One installed file and the hash it had when it was written.</summary>
@@ -301,4 +304,5 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
 

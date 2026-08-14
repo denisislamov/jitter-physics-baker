@@ -53,6 +53,9 @@ namespace DataSakura.JitterPhysics.Editor.Install
         /// <summary>Where the Jitter-dependent adapter goes.</summary>
         public const string DefaultIntegrationFolder = "Assets/DataSakura/JitterPhysics/Integration";
 
+        /// <summary>Where the runnable samples go.</summary>
+        public const string DefaultSamplesFolder = "Assets/DataSakura/JitterPhysics/Samples";
+
         private const string JitterAsmdefName = "Jitter2.Core.asmdef";
         private const string IntegrationAsmdefName = "DataSakura.JitterPhysics.JitterIntegration.asmdef";
 
@@ -286,6 +289,91 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
 
         /// <summary>
+        /// Installs the runnable samples: two scenes built from code, a bouncing-ball drop, a
+        /// first-person shooter and a runtime artifact check.
+        /// </summary>
+        /// <remarks>
+        /// Refused without the adapter, because the sample assembly references it by name and
+        /// Unity would answer with a missing-assembly error that says nothing about the cause.
+        /// </remarks>
+        /// <param name="targetFolder">Where to put them; <see cref="DefaultSamplesFolder"/> by default.</param>
+        public static JitterPhysicsInstallResult InstallSamples(string targetFolder = null)
+        {
+            var issues = new JitterPhysicsIssueLog();
+            targetFolder = Normalize(targetFolder ?? DefaultSamplesFolder);
+
+            if (RefuseInPlayMode(issues))
+            {
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            string packageRoot = JitterPhysicsCompatibilityReport.ResolvePackageRootPath();
+            if (string.IsNullOrEmpty(packageRoot))
+            {
+                issues.Error("The package root could not be resolved, so there is nothing to copy from.");
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            JitterPhysicsInstallReceipt receipt = LoadReceipt(issues);
+            if (issues.HasErrors)
+            {
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            if (receipt.Component(JitterPhysicsComponentIds.Integration) == null)
+            {
+                issues.Error(
+                    "The samples run against the Jitter integration adapter, which this project "
+                    + "does not have. Install Jitter2 and the integration first.");
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            string sourceFolder = Path.Combine(packageRoot, "Samples~");
+            string templateFolder = Path.Combine(sourceFolder, "UnityAssemblyTemplate");
+
+            string runtimeTemplate = Path.Combine(
+                templateFolder, "DataSakura.JitterPhysics.Samples.asmdef.template.json");
+            string editorTemplate = Path.Combine(
+                templateFolder, "DataSakura.JitterPhysics.Samples.Editor.asmdef.template.json");
+
+            if (!Directory.Exists(sourceFolder) || !File.Exists(runtimeTemplate) || !File.Exists(editorTemplate))
+            {
+                issues.Error("The samples are missing from the package.");
+                return new JitterPhysicsInstallResult(null, issues);
+            }
+
+            // Two assemblies rather than one: the scene builders use UnityEditor, and an editor
+            // type in a runtime assembly fails the player build rather than the import, which is
+            // the worst moment to find out.
+            var extraFiles = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>(
+                    "Runtime/DataSakura.JitterPhysics.Samples.asmdef", runtimeTemplate),
+                new KeyValuePair<string, string>(
+                    "Editor/DataSakura.JitterPhysics.Samples.Editor.asmdef", editorTemplate),
+            };
+
+            string readme = Path.Combine(sourceFolder, "README.md");
+            if (File.Exists(readme))
+            {
+                extraFiles.Add(new KeyValuePair<string, string>("README.md", readme));
+            }
+
+            return Install(
+                JitterPhysicsComponentIds.Samples,
+                sourceFolder,
+                targetFolder,
+                null,
+                null,
+                JitterPhysicsPackage.PackageVersion,
+                receipt,
+                issues,
+                "*.cs",
+                null,
+                extraFiles);
+        }
+
+        /// <summary>
         /// Removes several components in one operation and reports them together. The menu and
         /// the Setup window use this rather than calling <see cref="Uninstall"/> twice: two
         /// separate reports mean the second one — the one with nothing to warn about — is the
@@ -454,7 +542,8 @@ namespace DataSakura.JitterPhysics.Editor.Install
             JitterPhysicsInstallReceipt receipt,
             JitterPhysicsIssueLog issues,
             string searchPattern = "*.cs",
-            IReadOnlyList<string> skipFileNames = null)
+            IReadOnlyList<string> skipFileNames = null,
+            IReadOnlyList<KeyValuePair<string, string>> extraFiles = null)
         {
             JitterPhysicsInstalledComponent existing = receipt.Component(componentId);
             if (existing != null && !VerifyUnmodified(existing, issues))
@@ -499,6 +588,17 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 }
 
                 staged.Add((asmdefName, asmdef));
+            }
+
+            // Written from templates for the same reason as the asmdef above: the package must not
+            // contain an assembly definition that references Jitter2, or a clean import - the one
+            // that happens before anything is installed - would stop compiling.
+            if (extraFiles != null)
+            {
+                for (int i = 0; i < extraFiles.Count; i++)
+                {
+                    staged.Add((extraFiles[i].Key, File.ReadAllBytes(extraFiles[i].Value)));
+                }
             }
 
 
@@ -755,6 +855,10 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
+
+
+
+
 
 
 

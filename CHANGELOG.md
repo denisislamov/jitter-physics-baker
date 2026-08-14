@@ -43,6 +43,16 @@ All notable changes to this package are documented here. The format is based on
   with an earlier release must be re-baked**.
 
 ### Added
+- **Three runnable samples and a getting-started guide.** `Install/update samples` in the
+  Setup window installs a bouncing-ball drop, a first-person shooter and a runtime artifact
+  check. The scenes are generated from code rather than shipped as `.unity` files, so
+  building the same scene twice and getting the same artifact hash is a menu entry rather
+  than a claim, and the samples never drift from committed GUIDs. They install through the
+  package, not the Package Manager's Import button: the sample assembly references the
+  adapter by name, and importing it into a project without the adapter yields a
+  missing-assembly error that names nothing useful. The samples own the tick loop, because
+  the package deliberately does not. `Documentation~/getting-started.md` walks the whole
+  path from import to a dedicated server.
 - **Package skeleton and the Jitter-free assembly graph.** The package now exists as a
   UPM package with `package.json`, license, third party notices, line-ending policy and
   the five assemblies described by the specification:
