@@ -20,7 +20,7 @@ namespace DataSakura.JitterPhysics.Contracts
         /// because the portable assemblies also compile outside Unity where the package
         /// manifest is not available.
         /// </summary>
-        public const string PackageVersion = "0.0.1";
+        public const string PackageVersion = "0.0.2";
 
         /// <summary>Human readable name used by editor windows and log prefixes.</summary>
         public const string DisplayName = "DataSakura Jitter Physics Baker";

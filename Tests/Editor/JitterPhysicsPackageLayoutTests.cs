@@ -61,6 +61,36 @@ namespace DataSakura.JitterPhysics.Editor.Tests
         }
 
         [Test]
+        public void PackageManifestExposesImportableSamples()
+        {
+            PackageInfo package = FindPackage();
+            Assert.That(package, Is.Not.Null);
+
+            string manifestPath = Path.Combine(package.resolvedPath, "package.json");
+            PackageManifest manifest = JsonUtility.FromJson<PackageManifest>(File.ReadAllText(manifestPath));
+
+            Assert.That(manifest.samples, Is.Not.Null);
+            Assert.That(manifest.samples.Length, Is.EqualTo(1));
+            Assert.That(manifest.samples[0].displayName, Is.EqualTo("Physics Baking Demos"));
+            Assert.That(manifest.samples[0].path, Is.EqualTo("Samples~/Demos"));
+            Assert.That(
+                Directory.Exists(Path.Combine(package.resolvedPath, manifest.samples[0].path)),
+                Is.True,
+                "The Package Manager sample path must resolve inside the published package.");
+
+            AssertSampleAssemblyMatchesInstallerTemplate(
+                package.resolvedPath,
+                "DataSakura.JitterPhysics.Samples.asmdef",
+                "DataSakura.JitterPhysics.Samples.asmdef.template.json",
+                "Runtime");
+            AssertSampleAssemblyMatchesInstallerTemplate(
+                package.resolvedPath,
+                "DataSakura.JitterPhysics.Samples.Editor.asmdef",
+                "DataSakura.JitterPhysics.Samples.Editor.asmdef.template.json",
+                "Editor");
+        }
+
+        [Test]
         public void AlwaysCompiledAssembliesExist()
         {
             IReadOnlyDictionary<string, AssemblyDefinition> definitions = LoadPackageAssemblyDefinitions();
@@ -178,6 +208,11 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             foreach (string path in Directory.GetFiles(
                          package.resolvedPath, "*.asmdef", SearchOption.AllDirectories))
             {
+                if (IsUnderHiddenPackageFolder(package.resolvedPath, path))
+                {
+                    continue;
+                }
+
                 var definition = JsonUtility.FromJson<AssemblyDefinition>(File.ReadAllText(path));
                 if (definition != null && !string.IsNullOrEmpty(definition.name))
                 {
@@ -186,6 +221,48 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             }
 
             return result;
+        }
+
+        private static bool IsUnderHiddenPackageFolder(string packageRoot, string path)
+        {
+            string relative = path.Substring(packageRoot.Length);
+            return relative
+                .Split(
+                    new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                    StringSplitOptions.RemoveEmptyEntries)
+                .Any(segment => segment.EndsWith("~", StringComparison.Ordinal));
+        }
+
+        private static void AssertSampleAssemblyMatchesInstallerTemplate(
+            string packageRoot,
+            string assemblyFile,
+            string templateFile,
+            string assemblyFolder)
+        {
+            string sampleAssembly = Path.Combine(
+                packageRoot, "Samples~", "Demos", assemblyFolder, assemblyFile);
+            string installerTemplate = Path.Combine(
+                packageRoot, "Samples~", "UnityAssemblyTemplate", templateFile);
+
+            Assert.That(File.Exists(sampleAssembly), Is.True);
+            Assert.That(File.Exists(installerTemplate), Is.True);
+            Assert.That(
+                File.ReadAllText(sampleAssembly).Replace("\r\n", "\n"),
+                Is.EqualTo(File.ReadAllText(installerTemplate).Replace("\r\n", "\n")),
+                "Package Manager import and the guarded installer must create the same assembly.");
+        }
+
+        [Serializable]
+        private sealed class PackageManifest
+        {
+            public PackageSample[] samples;
+        }
+
+        [Serializable]
+        private sealed class PackageSample
+        {
+            public string displayName;
+            public string path;
         }
 
         [Serializable]

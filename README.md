@@ -16,12 +16,13 @@ identical in two code bases by hand.
 path: adding the package, providing Jitter2, marking up a level, baking it, loading it in
 Unity, and running the same bytes on a dedicated server.
 
-Three runnable samples are installed from the detailed installation view opened from the
-**Setup** tab; see `Samples~/README.md`.
+After installing Jitter2 and the integration adapter, import the three runnable demos from
+the package's **Samples** tab in Package Manager, or use the guarded installer in the
+**Setup** tab; see `Samples~/Demos/README.md`.
 
 ## Status
 
-Early development (`0.0.1`). The assembly graph, the artifact contracts and the editor
+Early development (`0.0.2`). The assembly graph, the artifact contracts and the editor
 bootstrap are being built stage by stage; see `CHANGELOG.md` for what already exists.
 
 ## Requirements
@@ -61,7 +62,7 @@ Tests/                  EditMode and PlayMode tests
 Jitter2~/               dormant Jitter2 reference snapshot (not compiled by Unity)
 JitterIntegration~/     Jitter-dependent adapter, installed on request
 Server~/                server source projection and .NET tests
-Samples~/  Documentation~/  tools~/
+Samples~/Demos  Documentation~/  tools~/
 ```
 
 ## Loading on a server

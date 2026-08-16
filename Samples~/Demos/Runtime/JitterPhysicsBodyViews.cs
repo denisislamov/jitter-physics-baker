@@ -106,4 +106,3 @@ namespace DataSakura.JitterPhysics.Samples
         }
     }
 }
-

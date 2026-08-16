@@ -15,7 +15,7 @@ later if you ignore it, the rule is stated where the step is, not in a footnote.
 ```json
 {
   "dependencies": {
-    "com.datasakura.jitter-physics-baker": "https://github.com/denisislamov/jitter-physics-baker.git#0.0.1"
+    "com.datasakura.jitter-physics-baker": "https://github.com/denisislamov/jitter-physics-baker.git#v0.0.2"
   }
 }
 ```
@@ -224,12 +224,17 @@ Rules that are not style preferences:
 - **Take the timestep from the artifact**, not from Unity's fixed timestep. The server does
   not know your project settings.
 
-`Samples~/Runtime/JitterPhysicsSampleWorld.cs` is a complete working version of the above.
+`Samples~/Demos/Runtime/JitterPhysicsSampleWorld.cs` is a complete working version of the above.
 
 ## 7. Install the samples
 
-From **Setup > Open installation details**, press **Install/update samples**, then use
-**Tools > DataSakura > Jitter Physics > Samples > Build and bake: Bouncing Ball**.
+After Jitter2 and the integration adapter are installed, open **Window > Package Manager**,
+select **DataSakura Jitter Physics Baker**, open **Samples**, and import
+**Physics Baking Demos**. Then use **Tools > DataSakura > Jitter Physics > Samples > Build
+and bake: Bouncing Ball**.
+
+You can alternatively use **Setup > Open installation details > Install/update samples**.
+That installer checks the prerequisite and tracks the copied files in the package receipt.
 
 | Sample | Shows |
 | --- | --- |
@@ -237,9 +242,11 @@ From **Setup > Open installation details**, press **Install/update samples**, th
 | FPS Shooter | Walking on, being stopped by, and shooting at baked geometry |
 | Artifact Verification | What a server checks before accepting players |
 
-They install through the package rather than the Package Manager's **Import** button, because
-the sample assembly references the adapter by name; importing it into a project without the
-adapter yields a missing-assembly error that names nothing useful.
+The sample assembly references the adapter by name. Package Manager cannot make its standard
+**Import** button conditional on a project-owned assembly, so install the adapter first; use
+the guarded Setup installer if you want the prerequisite checked before any files are copied.
+The sample controls support both Unity input backends without adding an Input System package
+dependency.
 
 ## 8. Run it on a dedicated server
 
@@ -273,8 +280,11 @@ if (!state.IsReady)
 The self-check line printed on success is meant for container logs and carries short hashes
 only.
 
-`Server/JitterPhysicsWebViewer` in this repository is a complete working server: it loads an
-artifact, builds the world, steps it and renders it in a browser.
+The UPM package supplies server runtime sources, not a standalone server executable. In the
+development monorepo, `Server/JitterPhysicsWebViewer` is a complete host example that loads an
+artifact, builds the world, steps it and renders it in a browser. That example is outside the
+published package tree; copy its hosting pattern into your server project or clone the
+development repository to run it unchanged.
 
 ## 9. Make client and server agree
 

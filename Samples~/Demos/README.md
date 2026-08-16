@@ -3,13 +3,19 @@
 Three runnable samples: two that put the baked level under load, and one that checks the
 artifact the way a dedicated server would before accepting connections.
 
-They are installed by the package rather than by the Package Manager's **Import** button.
-The sample assembly references `DataSakura.JitterPhysics.JitterIntegration` by name, and
-importing it into a project that has not installed the adapter yet produces a missing
-assembly error that says nothing about the cause. `Install/update samples` in
-**Tools > DataSakura > Jitter Physics > Setup** refuses with the actual reason instead, and
-the files it writes are tracked by the same receipt as everything else, so removing them is
-also one action.
+Install Jitter2 and the integration adapter first. Then select the package in
+**Window > Package Manager**, open **Samples**, and import **Physics Baking Demos**. The
+same files can also be installed through `Install/update samples` in
+**Tools > DataSakura > Jitter Physics > Setup**; that path checks the prerequisite and
+tracks the copied files in the package installation receipt.
+
+The sample assembly references `DataSakura.JitterPhysics.JitterIntegration` by name. Unity's
+standard Package Manager import cannot disable its button while that project-owned adapter
+is missing, so importing out of order produces a missing-assembly error. The Setup installer
+is the guarded alternative when the project has not completed integration setup yet.
+
+The controls work with either **Input Manager (Old)** or **Input System Package** as the
+project's active input backend. The samples do not add an Input System package dependency.
 
 ## Building a sample
 
@@ -103,4 +109,3 @@ simulation lives, which is rarely a `MonoBehaviour`, and a dedicated server does
 own loop. The timestep comes from the artifact rather than Unity's fixed timestep because the
 server has to advance the same world by the same amount and knows nothing about the Unity
 project's settings.
-

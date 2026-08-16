@@ -123,7 +123,7 @@ namespace DataSakura.JitterPhysics.Samples
             Move();
             Shoot();
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (JitterPhysicsSampleInput.WasKeyPressedThisFrame(KeyCode.Escape))
             {
                 Cursor.lockState = CursorLockMode.None;
             }
@@ -131,15 +131,16 @@ namespace DataSakura.JitterPhysics.Samples
 
         private void Look()
         {
-            yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
-            pitch = Mathf.Clamp(pitch - Input.GetAxisRaw("Mouse Y") * mouseSensitivity, -85f, 85f);
+            Vector2 look = JitterPhysicsSampleInput.LookDelta;
+            yaw += look.x * mouseSensitivity;
+            pitch = Mathf.Clamp(pitch - look.y * mouseSensitivity, -85f, 85f);
         }
 
         private void Move()
         {
             Quaternion facing = Quaternion.Euler(0f, yaw, 0f);
-            Vector3 wish = facing * new Vector3(
-                Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
+            Vector2 move = JitterPhysicsSampleInput.Move;
+            Vector3 wish = facing * new Vector3(move.x, 0f, move.y);
 
             if (wish.sqrMagnitude > 1f)
             {
@@ -158,7 +159,7 @@ namespace DataSakura.JitterPhysics.Samples
             {
                 velocity.y = 0f;
 
-                if (Input.GetKeyDown(KeyCode.Space))
+                if (JitterPhysicsSampleInput.WasKeyPressedThisFrame(KeyCode.Space))
                 {
                     velocity.y = jumpSpeed;
                     grounded = false;
@@ -232,13 +233,13 @@ namespace DataSakura.JitterPhysics.Samples
 
         private void Shoot()
         {
-            if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
+            if (JitterPhysicsSampleInput.IsPrimaryButtonPressed && Time.time >= nextFireTime)
             {
                 nextFireTime = Time.time + fireInterval;
                 FireProjectile();
             }
 
-            if (Input.GetMouseButtonDown(1))
+            if (JitterPhysicsSampleInput.WasSecondaryButtonPressedThisFrame)
             {
                 FireHitscan();
             }
@@ -356,6 +357,4 @@ namespace DataSakura.JitterPhysics.Samples
         }
     }
 }
-
-
 

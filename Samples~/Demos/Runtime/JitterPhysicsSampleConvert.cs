@@ -105,4 +105,3 @@ namespace DataSakura.JitterPhysics.Samples
             proxy is RigidBodyShape shape ? shape.RigidBody : null;
     }
 }
-

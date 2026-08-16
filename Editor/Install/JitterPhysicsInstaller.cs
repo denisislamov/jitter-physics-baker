@@ -392,8 +392,9 @@ namespace DataSakura.JitterPhysics.Editor.Install
                 return new JitterPhysicsInstallResult(null, issues);
             }
 
-            string sourceFolder = Path.Combine(packageRoot, "Samples~");
-            string templateFolder = Path.Combine(sourceFolder, "UnityAssemblyTemplate");
+            string samplesRoot = Path.Combine(packageRoot, "Samples~");
+            string sourceFolder = Path.Combine(samplesRoot, "Demos");
+            string templateFolder = Path.Combine(samplesRoot, "UnityAssemblyTemplate");
 
             string runtimeTemplate = Path.Combine(
                 templateFolder, "DataSakura.JitterPhysics.Samples.asmdef.template.json");
@@ -926,7 +927,6 @@ namespace DataSakura.JitterPhysics.Editor.Install
         }
     }
 }
-
 
 
 

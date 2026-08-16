@@ -179,4 +179,3 @@ namespace DataSakura.JitterPhysics.Samples
             string.IsNullOrEmpty(hash) || hash.Length <= 12 ? hash : hash.Substring(0, 12);
     }
 }
-

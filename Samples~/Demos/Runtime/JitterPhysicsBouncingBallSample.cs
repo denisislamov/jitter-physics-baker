@@ -87,12 +87,12 @@ namespace DataSakura.JitterPhysics.Samples
                 return;
             }
 
-            if (Input.GetKeyDown(dropKey))
+            if (JitterPhysicsSampleInput.WasKeyPressedThisFrame(dropKey))
             {
                 Drop();
             }
 
-            if (Input.GetKeyDown(clearKey))
+            if (JitterPhysicsSampleInput.WasKeyPressedThisFrame(clearKey))
             {
                 views.Clear(sampleWorld.World);
                 dropped = 0;
@@ -154,4 +154,3 @@ namespace DataSakura.JitterPhysics.Samples
         }
     }
 }
-

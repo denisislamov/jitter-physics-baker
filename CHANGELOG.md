@@ -6,6 +6,8 @@ All notable changes to this package are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-08-16
+
 ### Changed
 - **The authoring window now follows the shared DataSakura package workflow.** A persistent
   header and manual readiness bar lead into `Overview`, `Sources`, `Bake`, `Tools`, `Setup`
@@ -14,6 +16,11 @@ All notable changes to this package are documented here. The format is based on
   the rule that opening, repainting or changing selection never writes project data.
 
 ### Fixed
+- **The runnable samples work when the project selects the new Input System exclusively.**
+  Their controls now use the active Unity input backend without making the base package depend
+  on `com.unity.inputsystem`; the legacy Input Manager remains supported.
+- **Generated provider names capitalize after a digit.** A level such as `2fort` now produces
+  the valid, documented `Level2FortArtifact` default instead of `Level2fortArtifact`.
 - **A plain sphere or box no longer fails to bake.** The collider converter used
   `default(Quaternion)` as its "no axis correction" sentinel, but that value is `(0,0,0,0)`
   and Unity compares quaternions by dot product, so the guard fired even when nothing was
@@ -50,16 +57,18 @@ All notable changes to this package are documented here. The format is based on
   with an earlier release must be re-baked**.
 
 ### Added
+- **The demos are importable from the Package Manager Samples tab.** The manifest now exposes
+  `Physics Baking Demos` from `Samples~/Demos`, with ready runtime and Editor assembly
+  definitions. The existing Setup installer remains available as the guarded path: unlike
+  Unity's standard Import button, it can explain that Jitter2 and the integration adapter
+  must be installed first.
 - **Three runnable samples and a getting-started guide.** `Install/update samples` in the
   Setup window installs a bouncing-ball drop, a first-person shooter and a runtime artifact
   check. The scenes are generated from code rather than shipped as `.unity` files, so
   building the same scene twice and getting the same artifact hash is a menu entry rather
-  than a claim, and the samples never drift from committed GUIDs. They install through the
-  package, not the Package Manager's Import button: the sample assembly references the
-  adapter by name, and importing it into a project without the adapter yields a
-  missing-assembly error that names nothing useful. The samples own the tick loop, because
-  the package deliberately does not. `Documentation~/getting-started.md` walks the whole
-  path from import to a dedicated server.
+  than a claim, and the samples never drift from committed GUIDs. The samples own the tick
+  loop, because the package deliberately does not. `Documentation~/getting-started.md`
+  walks the whole path from import to a dedicated server.
 - **Package skeleton and the Jitter-free assembly graph.** The package now exists as a
   UPM package with `package.json`, license, third party notices, line-ending policy and
   the five assemblies described by the specification:
@@ -228,4 +237,5 @@ All notable changes to this package are documented here. The format is based on
   mode. What no test can cover — dialogs, windows, installing into a project, exporting — is
   written down step by step in the development project's manual test plan.
 
-[Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/main...HEAD
+[Unreleased]: https://github.com/denisislamov/jitter-physics-baker/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/denisislamov/jitter-physics-baker/releases/tag/v0.0.2

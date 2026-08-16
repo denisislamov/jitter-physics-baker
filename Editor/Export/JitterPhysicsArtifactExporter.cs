@@ -359,7 +359,7 @@ namespace DataSakura.JitterPhysics.Editor.Export
                 }
 
                 builder.Append(capitalize ? char.ToUpperInvariant(character) : character);
-                capitalize = false;
+                capitalize = char.IsDigit(character);
             }
 
             if (builder.Length == 0 || char.IsDigit(builder[0]))
@@ -371,4 +371,3 @@ namespace DataSakura.JitterPhysics.Editor.Export
         }
     }
 }
-

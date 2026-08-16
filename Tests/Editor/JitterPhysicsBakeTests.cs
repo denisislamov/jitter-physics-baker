@@ -61,6 +61,8 @@ namespace DataSakura.JitterPhysics.Editor.Tests
             // into the artifact, the two bakes below would differ.
             JitterStaticBodySource second = CreateSource(root, "b_second", new Vector3(3f, 0f, 0f));
             JitterStaticBodySource first = CreateSource(root, "a_first", new Vector3(-3f, 0f, 0f));
+            second.gameObject.AddComponent<BoxCollider>();
+            first.gameObject.AddComponent<BoxCollider>();
 
             PhysicsArtifact artifact = BuildArtifact(level);
 
